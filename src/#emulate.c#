@@ -190,8 +190,6 @@ int main(int argc, char **argv) {
   }
   int array[32];
   intsToBinArray(a[0],a[1],a[2],a[3],array);
-  
-
     int *memory = (int*)  calloc(65536,1); // this is me trying to initilaise the memory part. just hving 2^16 bits. Not really sure what I'm doing here
     struct registerRep *registers = createRegisters();
     printRegisters(registers);
