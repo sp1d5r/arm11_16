@@ -10,10 +10,21 @@ struct registerRep{
   int binary[32];
 };
 
+void initialiseRegisters(struct registerRep *registerArray);
+void printRegisters(struct registerRep *array);
+void printRegister(struct registerRep r);
+void setRegister(struct registerRep *r, int value);
+void updateRegisterFromBinArray(struct registerRep *r);
+int *createInstruction();
+void setBinaryBit(struct registerRep *r, int position, int setTo);
+void flipAllBits(int *array);
+void addOne(int *array);
+void setBinaryArray(int *array, int value);
+void setBinaryArray8Bit(int *array, int value);
 
 void  initialiseRegisters(struct registerRep *registerArray){
   for (int i = 0; i < 15; i++){
-    setRegister(registerArray[i],0);
+    setRegister(&registerArray[i],0);
   }
 }
 
@@ -130,7 +141,7 @@ void bigEndianConvert(int* array){
   }
 }
 
-void *twosCompConvert(int i, int *array){
+void twosCompConvert(int i, int *array){
   setBinaryArray8Bit(array,abs(i));
   if (i < 0){
     flipAllBits(array);
@@ -172,8 +183,8 @@ int fileSize(FILE *file){
 
 int main(int argc, char **argv) {
 
-  int instructionCout = 0;
-  size_t instructionSize = 32*sizeof(int); 
+  // int instructionCout = 0;
+  // size_t instructionSize = 32*sizeof(int); 
   FILE *binaryFile = binaryFile = fopen(argv[1],"rb");
   if (binaryFile == NULL){
       printf("error file not found\n");
@@ -185,16 +196,16 @@ int main(int argc, char **argv) {
   char *buffer = (char*) calloc(1,fileLength+1);
   fread(buffer,fileLength,1,binaryFile);
   fclose(binaryFile);
-  for  (int i = 0; i < 4; i++){
+  for (int i = 0; i < 4; i++){
     a[i] = buffer[i];
   }
   int array[32];
   intsToBinArray(a[0],a[1],a[2],a[3],array);
   
 
-    int *memory = (int*)  calloc(65536,1); // this is me trying to initilaise the memory part. just hving 2^16 bits. Not really sure what I'm doing here
-    struct registerRep *registers = createRegisters();
-    printRegisters(registers);
+//  int *memory = (int*)  calloc(65536,1); // this is me trying to initilaise the memory part. just hving 2^16 bits. Not really sure what I'm doing here
+  struct registerRep *registers = createRegisters();
+  printRegisters(registers);
    
   return EXIT_SUCCESS;
 }
