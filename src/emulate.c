@@ -1,214 +1,194 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
-#include <assert.h>
-#include <math.h>
+#include <stdbool.h>
 
+// enum for the instructions available.
+typedef enum INSTRUCTION {
+    MULTIPLY, BRANCH, PROCESS, TRANSFER
+} INSTRUCTION;
 
-struct registerRep{
-  int value;
-  int binary[32];
-};
+// Struct storing the current state of the machine.
+typedef struct ARMState {
+    uint8_t *memory;
+    uint32_t regs[17];
+} ARMState;
 
-void initialiseRegisters(struct registerRep *registerArray);
-void printRegisters(struct registerRep *array);
-void printRegister(struct registerRep r);
-void setRegister(struct registerRep *r, int value);
-void updateRegisterFromBinArray(struct registerRep *r);
-int *createInstruction();
-void setBinaryBit(struct registerRep *r, int position, int setTo);
-void flipAllBits(int *array);
-void addOne(int *array);
-void setBinaryArray(int *array, int value);
-void setBinaryArray8Bit(int *array, int value);
+// Struct to store the value of the 4 bit instruction in big endian, the instruction type,
+// the registers which are required and the values of any other bits such as the Immediate operand.
+typedef struct RETURN {
+    uint32_t eConverted;
+    INSTRUCTION instruction;
+    uint8_t destReg, opReg1, opReg2, opReg3, bitSet1, bitSet2, upBit, loadSToreBit;
+} RETURN;
 
-void  initialiseRegisters(struct registerRep *registerArray){
-  for (int i = 0; i < 15; i++){
-    setRegister(&registerArray[i],0);
-  }
-}
-
-void printRegisters(struct registerRep *array){
-  for (int i = 0; i < 15; i++){
-    printRegister(array[i]);
-    printf("\n");
-  }
-}
-  
-
-void printRegister(struct registerRep r){
-  for (int  i = 0; i < 32; i++){
-    printf("%i",r.binary[i]);
-  }
-}
-
-
-void setRegister(struct registerRep *r, int value){
-   r->value = value;
-   setBinaryArray(r->binary,value);
-}
-
-void updateRegisterFromBinArray(struct registerRep *r){
-  int total = 0;
-  for (int i = 31; i > -1; i--){
-    int power = (int) pow(2.0, (double) i - 31); //this will just calculate what power of 2 we need to use
-    total = total + (power * r->binary[i]);
-  }
-  r->value = total;
-}
-
-int *createInstruction(){
-  return (int*) calloc(32,sizeof(int));
-}
-
-void setBinaryBit(struct registerRep *r, int position, int setTo){
-  assert(setTo == 1 || setTo == 0);
-  r->binary[position] = setTo;
-  updateRegisterFromBinArray(r);
-}
-
-struct registerRep *createRegisters(){
-  return (struct registerRep*) calloc(15,sizeof(struct registerRep));
-}
-
-
-void flipAllBits(int *array){
-  for (int i = 0; i < 8; i++){
-    if (array[i] == 1){
-      array[i] = 0;
-    } else {
-      array[i] = 1;
+// Initialises all registers and memory addressed to zero.
+void initialiseState(ARMState *state) {
+    for (int i = 0; i < 17; i++) {
+        (*state).regs[i] = 0;
     }
-  }
+    (*state).memory = (uint8_t *) calloc(65536, sizeof(uint8_t));
 }
 
-void addOne(int *array){
-  int carry = 0;
-  int i = 7;
-  do{
-    if(array[i]== 1){
-      array[i] = 0;
-      carry = 1;
+// Returns the type of instruction given in.
+INSTRUCTION workOutType(uint32_t eConverted) {
+    if (eConverted & 0x08000000) {
+        return BRANCH;
+    } else if (eConverted & 0x04000000) {
+        return TRANSFER;
     } else {
-      array[i] = 1;
-      carry = 0;
+        if ((eConverted & 0x000000F0) >> 4 == 9) {
+            return MULTIPLY;
+        } else {
+            return PROCESS;
+        }
     }
-    i--;
-  }while (carry);
 }
 
-  
-
-void setBinaryArray(int *array, int value){
-   int mask = 1;
-   for (int i = 31; i > -1; i--){
-     if ((value & mask) == 0){
-       array[i] = 0;
-     } else {
-       array[i] = 1;
-     }
-     mask = mask << 1;
-   }
- }
-
-
-void setBinaryArray8Bit(int *array, int value){
-   int mask = 1;
-   for (int i = 8; i > -1; i--){
-     if ((value & mask) == 0){
-       array[i] = 0;
-     } else {
-       array[i] = 1;
-     }
-     mask = mask << 1;
-   }
- }
-
-
-
-void bufferSetZero(int *buffer){
-  for (int i = 0; i < 8; i++){
-    buffer[i] = 0;
-  }
+// Converts instruction to big endian.
+uint32_t bigEndianConverter(uint8_t first, uint8_t second, uint8_t third, uint8_t fourth) {
+    return (uint32_t) ((fourth << 24) + (third << 16) + (second << 8) + first);
 }
 
-void bigEndianConvert(int* array){
-  for (int i = 0; i < 16; i++){
-    int begin = array[i];
-    int end = array[31 - i];
-    array[i] = end;
-    array[31 - i] = begin;
-  }
+// Saves the register numbers and any sign/condition flags in output.
+RETURN *returnRegisters(uint32_t eConverted, INSTRUCTION type, RETURN *returnThis) {
+    switch (type) {
+        case MULTIPLY:
+            returnThis->destReg = (eConverted & 0x000F0000) >> 16; // Rd
+            returnThis->opReg1 = (eConverted & 0x0000F000) >> 12; // Rn
+            returnThis->opReg2 = (eConverted & 0x00000F00) >> 8; // Rs
+            returnThis->opReg3 = (eConverted & 0x0000000F); // Rm
+            if (eConverted & 0x00200000)
+                returnThis->bitSet1 = 1; // Accumulate
+            if (eConverted & 0x00100000)
+                returnThis->bitSet2 = 1; // Set condition codes
+            break;
+        case TRANSFER:
+            returnThis->destReg = (eConverted & 0x0000F000) >> 12; // Rd
+            returnThis->opReg1 = (eConverted & 0x000F0000) >> 16; // Rn
+            if (eConverted & 0x02000000)
+                returnThis->bitSet1 = 1; // operand 2 is an immediate constant
+            if (eConverted & 0x01000000)
+                returnThis->bitSet2 = 1; // Pre/Post indexing bit is set
+            if (eConverted & 0x00800000)
+                returnThis->upBit = 1; // Up bit is Set
+            if (eConverted & 0x00100000)
+                returnThis->loadSToreBit = 1; // Load/Store bit is set
+            break;
+        case PROCESS:
+            returnThis->destReg = (eConverted & 0x0000F000) >> 12; // Rd
+            returnThis->opReg1 = (eConverted & 0x000F0000) >> 16; // Rn
+            if (eConverted & 0x02000000)
+                returnThis->bitSet1 = 1; // operand 2 is an immediate constant
+            break;
+        default: // DEFAULT -> BRANCH
+            break;
+    }
+    return returnThis;
 }
 
-void twosCompConvert(int i, int *array){
-  setBinaryArray8Bit(array,abs(i));
-  if (i < 0){
-    flipAllBits(array);
-    addOne(array);
-  }
+// Emulator decoder used to decode instructions.
+RETURN *decode(uint8_t first, uint8_t second, uint8_t third, uint8_t fourth, RETURN *returnThis) {
+    returnThis->eConverted = bigEndianConverter(first, second, third, fourth);
+    returnThis->instruction = workOutType(returnThis->eConverted);
+    returnRegisters(returnThis->eConverted, returnThis->instruction, returnThis);
+    return returnThis;
 }
 
-int *combineToOne(int *one, int *two, int *three, int *four, int *array){
-   for (int i = 0; i < 8; i++){
-     array[i] = one[i];
-     array[i+8] = two[i];
-     array[i+16] = three[i];
-     array[i+24] = four[i];
-   }
-   bigEndianConvert(array);
-   return array;
- }
-  
-int *intsToBinArray(int a, int b, int c, int d, int *array){
-   int firstByte[8];
-   int secondByte[8];
-   int thirdByte[8];
-   int fourthByte[8];
-   twosCompConvert(a,firstByte);
-   twosCompConvert(b,secondByte);
-   twosCompConvert(c,thirdByte);
-   twosCompConvert(d,fourthByte);
-   combineToOne(firstByte,secondByte,thirdByte,fourthByte,array);
-   return array;
+// Check Condition Field
+bool conditionChecker(uint32_t eConverted, ARMState state) {
+    switch (eConverted & 0xF0000000) {
+
+    }
 }
 
-int fileSize(FILE *file){
-  int size = 0;
-  fseek(file,0,SEEK_END);
-  size = ftell(file);
-  fseek(file,0,SEEK_SET);
-  return size;
+
+// Multiply Instruction
+void multiply(RETURN *executable, ARMState state) {
+    if (conditionChecker(executable->eConverted, state)) {}
 }
 
+// Branch Instruction
+void branch(RETURN *executable, ARMState state) {}
+
+// Process Instruction
+void process(RETURN *executable, ARMState state) {}
+
+// Transfer Instruction
+void transfer(RETURN *executable, ARMState state) {}
+
+// Emulator executor used to execute instructions.
+void execute(RETURN *executable, ARMState state) {
+    switch (executable->instruction) {
+        case MULTIPLY:
+            multiply(executable, state);
+            break;
+        case BRANCH:
+            branch(executable, state);
+            break;
+        case PROCESS:
+            process(executable, state);
+            break;
+        case TRANSFER:
+            transfer(executable, state);
+            break;
+    }
+}
+
+// An instruction is 4 bytes. The pipeline takes an instruction and decodes it
+// while simultaneously executing the previously decoded instruction.
+// The PC is always 8 bytes greater than the address of the instruction being executed.
+void pipe(ARMState state, int noOfInstructions) {
+    RETURN previouslyDecodedInstruction = {0, (INSTRUCTION) NULL, 0,
+                                           0, 0, 0, 0, 0,
+                                           0, 0};
+    for (int i = 0; i < noOfInstructions; i++) {
+        if (i > 0)
+            execute(&previouslyDecodedInstruction, state);
+        decode(state.memory[state.regs[15]], state.memory[state.regs[15] + 1],
+               state.memory[state.regs[15] + 2],
+               state.memory[state.regs[15] + 3], &previouslyDecodedInstruction);
+        state.regs[15] += 4;
+    }
+}
+
+// Checks if the input file is null.
+bool isFileNull(FILE *binaryFile) {
+    if (binaryFile == NULL) {
+        printf("Please use a valid file.\n");
+        fclose(binaryFile);
+        return EXIT_FAILURE;
+    }
+    return 0;
+}
+
+// Reads from the binary file.
+int readFromBinFile(ARMState state, FILE *binaryFile) {
+    int arrayIndex = -1;
+    while (state.memory != NULL && (fread(&state.memory[++arrayIndex], sizeof(uint8_t), 1, binaryFile) == 1)) {}
+    fclose(binaryFile);
+    if (state.memory == NULL)
+        return -1;
+    return arrayIndex;
+}
+
+// Where all the magic happens.
 int main(int argc, char **argv) {
-
-  // int instructionCout = 0;
-  // size_t instructionSize = 32*sizeof(int); 
-  FILE *binaryFile = binaryFile = fopen(argv[1],"rb");
-  if (binaryFile == NULL){
-      printf("error file not found\n");
-      exit(1);
-    }
-  int fileLength = fileSize(binaryFile);
-  int a[4];
- 
-  char *buffer = (char*) calloc(1,fileLength+1);
-  fread(buffer,fileLength,1,binaryFile);
-  fclose(binaryFile);
-  for (int i = 0; i < 4; i++){
-    a[i] = buffer[i];
-  }
-  int array[32];
-  intsToBinArray(a[0],a[1],a[2],a[3],array);
-  
-
-//  int *memory = (int*)  calloc(65536,1); // this is me trying to initilaise the memory part. just hving 2^16 bits. Not really sure what I'm doing here
-  struct registerRep *registers = createRegisters();
-  printRegisters(registers);
-   
-  return EXIT_SUCCESS;
+    if (argc != 2)
+        return EXIT_FAILURE;
+    ARMState state;
+    FILE *binaryFile;
+    binaryFile = fopen(argv[1], "rb");
+    if (isFileNull(binaryFile))
+        return EXIT_FAILURE;
+    initialiseState(&state);
+    int n = readFromBinFile(state, binaryFile);
+    if (n == -1)
+        return EXIT_FAILURE;
+/*    for (int i = 0; i < n; i++) {
+        printf("%02x ", state.memory[i]);
+    }*/
+    pipe(state, n / 4);
+    free(state.memory);
+    return EXIT_SUCCESS;
 }
-
-// /home/ayoob/Programming/C/arm11_16/testing/arm11_testsuite/test_cases/add01
-
