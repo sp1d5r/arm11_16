@@ -1,3 +1,3 @@
 emulate: emulate.c
-	gcc -Wall -g emulate.c -lm -o emulate
+	gcc -Werror -Wall -g -pedantic emulate.c -lm -o emulate
 
