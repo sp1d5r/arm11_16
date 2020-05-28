@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <math.h>
 
+// Removed -Werror from Makefile but make sure to reinclude it later.
+
+#define PC_OFFSET 8
+#define ARG_WITH_FILE 1
 #define PROGRAM_COUNTER_LOCATION 13
 #define NUMBER_OF_REGISTERS 15
 #define MAX_BYTES 65536
@@ -25,14 +30,18 @@
 #define MULTIPLY_RM_MASK 0x0000000F
 #define ACCUMULATE_MASK 0x00200000
 #define COND_FIELD_MASK 0xF0000000
-#define NIBBLE 4
-#define BYTE 8
-#define TWO_BYTES 16
-#define THREE_BYTES 24
+#define BITS_IN_NIBBLE 4
+#define BITS_IN_BYTE 8
+#define BITS_IN_TWO_BYTES 16
+#define BITS_IN_THREE_BYTES 24
+#define NUMBER_OF_BYTES_IN_INSTR 4
 #define INIT_ZERO_VAL 0
 #define OFFSET_MASK 0x00FFFFFFFF
 #define OFFSET_SHIFT 2
 #define SIGN_BIT_MASK 0x02000000
+#define SIGN_EXTEND_MASK 0xFC000000
+#define N_MASK 0x80000000
+#define Z_AND_N_MASK 0x3FFFFFFF
 
 // enum for the instructions available.
 typedef enum INSTRUCTION {
@@ -47,12 +56,26 @@ typedef struct ARMState {
 
 // Struct to store the value of the 4 bit instruction in big endian, the instruction type,
 // the registers which are required and the values of any other bits such as the Immediate operand.
-typedef struct DECODED {
+typedef struct DECODE {
     uint32_t bigEndianInstr;
     INSTRUCTION instruction;
     uint8_t destReg, opReg1, opReg2, opReg3;
     bool op1, op2, upBit, loadSToreBit;
-} DECODED;
+} DECODE;
+
+typedef enum SHIFTTYPE {
+    LOGICALLEFT, LOGICALRIGHT, ARITHMETIC, ROTATERIGHT
+} SHIFTTYPE;
+
+typedef struct SHIFTER {
+    bool op2IsImm;
+    uint32_t valueForImm;
+    uint32_t rotateAmount;
+    uint32_t registerToGetValueFrom;
+    uint32_t integerForRegister;
+    SHIFTTYPE shiftType;
+    bool setFlags;
+} SHIFTER;
 
 // Initialises all registers and memory addressed to zero.
 void initialiseState(ARMState *state) {
@@ -69,8 +92,8 @@ INSTRUCTION workOutType(uint32_t bigEndianInstr) {
     } else if (bigEndianInstr & TRANSFER_INSTR_MASK) {
         return TRANSFER;
     } else {
-        if ((((bigEndianInstr & MULTIPLY_INSTR_1_MASK) >> NIBBLE) == 0x9) &&
-            !(bigEndianInstr & MULTIPLY_INSTR_2_MASK)) {
+        if ((((bigEndianInstr & MULTIPLY_INSTR_1_MASK) >> BITS_IN_NIBBLE) == 0x9) &&
+            !(bigEndianInstr & MULTIPLY_INSTR_2_MASK)) { // MAYBE ONE OF THE ANDS CAN BE REMOVED? CHECK WHILE TESTING.
             return MULTIPLY;
         } else {
             return PROCESS;
@@ -80,32 +103,32 @@ INSTRUCTION workOutType(uint32_t bigEndianInstr) {
 
 // Converts instruction to big endian.
 uint32_t bigEndianConverter(uint32_t byte1, uint32_t byte2, uint32_t byte3, uint32_t byte4) {
-    return (byte4 << THREE_BYTES) + (byte3 << TWO_BYTES) + (byte2 << BYTE) + byte1;
+    return (byte4 << BITS_IN_THREE_BYTES) + (byte3 << BITS_IN_TWO_BYTES) + (byte2 << BITS_IN_BYTE) + byte1;
 }
 
 // Saves the register numbers and any sign/condition flags in output.
-void decodeHelper(uint32_t bigEndianInstr, INSTRUCTION instrType, DECODED *instrToDecode) {
+void decodeHelper(uint32_t bigEndianInstr, INSTRUCTION instrType, DECODE *instrToDecode) {
     switch (instrType) {
         case MULTIPLY:
-            instrToDecode->destReg = (bigEndianInstr & MULTIPLY_RD_MASK) >> TWO_BYTES; // Rd
-            instrToDecode->opReg1 = (bigEndianInstr & MULTIPLY_RN_MASK) >> (BYTE + NIBBLE); // Rn
-            instrToDecode->opReg2 = (bigEndianInstr & MULTIPLY_RS_MASK) >> BYTE; // Rs
+            instrToDecode->destReg = (bigEndianInstr & MULTIPLY_RD_MASK) >> BITS_IN_TWO_BYTES; // Rd
+            instrToDecode->opReg1 = (bigEndianInstr & MULTIPLY_RN_MASK) >> (BITS_IN_BYTE + BITS_IN_NIBBLE); // Rn
+            instrToDecode->opReg2 = (bigEndianInstr & MULTIPLY_RS_MASK) >> BITS_IN_BYTE; // Rs
             instrToDecode->opReg3 = (bigEndianInstr & MULTIPLY_RM_MASK); // Rm
             instrToDecode->op1 = bigEndianInstr & ACCUMULATE_MASK; // Accumulate Bit Set?
             instrToDecode->op2 = bigEndianInstr & S_OR_L_MASK; // Set condition codes?
             break;
         case TRANSFER:
-            instrToDecode->destReg = (bigEndianInstr & DATA_RD_MASK) >> (BYTE + NIBBLE); // Rd
-            instrToDecode->opReg1 = (bigEndianInstr & DATA_RN_MASK) >> TWO_BYTES; // Rn
-            instrToDecode->op1 = bigEndianInstr & IMMEDIATE_MASK; // Operand 2 is an immediate constant if 1
+            instrToDecode->destReg = (bigEndianInstr & DATA_RD_MASK) >> (BITS_IN_BYTE + BITS_IN_NIBBLE); // Rd
+            instrToDecode->opReg1 = (bigEndianInstr & DATA_RN_MASK) >> BITS_IN_TWO_BYTES; // Rn
+            instrToDecode->op1 = bigEndianInstr & IMMEDIATE_MASK; // Operand 2 type? Immediate if 1 else register
             instrToDecode->op2 = bigEndianInstr & P_MASK; // Pre/Post indexing bit is set?
             instrToDecode->upBit = bigEndianInstr & U_MASK; // Up bit is set?
             instrToDecode->loadSToreBit = bigEndianInstr & S_OR_L_MASK; // Load/Store bit is set?
             break;
         case PROCESS:
-            instrToDecode->destReg = (bigEndianInstr & DATA_RD_MASK) >> (BYTE + NIBBLE); // Rd
-            instrToDecode->opReg1 = (bigEndianInstr & DATA_RN_MASK) >> TWO_BYTES; // Rn
-            instrToDecode->op1 = bigEndianInstr & IMMEDIATE_MASK; // Operand 2 is an immediate constant if 1
+            instrToDecode->destReg = (bigEndianInstr & DATA_RD_MASK) >> (BITS_IN_BYTE + BITS_IN_NIBBLE); // Rd
+            instrToDecode->opReg1 = (bigEndianInstr & DATA_RN_MASK) >> BITS_IN_TWO_BYTES; // Rn
+            instrToDecode->op1 = bigEndianInstr & IMMEDIATE_MASK; // Operand 2 type? Immediate if 1 else register
             instrToDecode->op2 = bigEndianInstr & S_OR_L_MASK; // Set condition codes?
             break;
         default:
@@ -114,7 +137,7 @@ void decodeHelper(uint32_t bigEndianInstr, INSTRUCTION instrType, DECODED *instr
 }
 
 // Emulator decoder used to decode instructions.
-void decode(uint8_t byte1, uint8_t byte2, uint8_t byte3, uint8_t byte4, DECODED *instrToDecode) {
+void decode(uint8_t byte1, uint8_t byte2, uint8_t byte3, uint8_t byte4, DECODE *instrToDecode) {
     instrToDecode->bigEndianInstr = bigEndianConverter(byte1, byte2, byte3, byte4);
     instrToDecode->instruction = workOutType(instrToDecode->bigEndianInstr);
     decodeHelper(instrToDecode->bigEndianInstr, instrToDecode->instruction, instrToDecode);
@@ -122,31 +145,250 @@ void decode(uint8_t byte1, uint8_t byte2, uint8_t byte3, uint8_t byte4, DECODED 
 
 // Check Condition Field
 bool conditionChecker(uint32_t bigEndianInstr, ARMState *state) {
-    return ((bigEndianInstr & COND_FIELD_MASK) >> 28) == state->regs[CPSR_LOCATION];
+    return (bigEndianInstr & COND_FIELD_MASK) == state->regs[CPSR_LOCATION]; // NO NEED TO SHIFT HERE!
 }
 
 // Branch Instruction
-void branch(DECODED *executableInstr, ARMState *state) {
-    uint32_t shiftedOffset = (executableInstr->bigEndianInstr & OFFSET_MASK) << OFFSET_SHIFT;
+void branch(DECODE *instrToDecode, ARMState *state) {
+    uint32_t shiftedOffset = (instrToDecode->bigEndianInstr & OFFSET_MASK) << OFFSET_SHIFT;
     bool signBit = (shiftedOffset & SIGN_BIT_MASK);
     if (signBit)
-        state->regs[PROGRAM_COUNTER_LOCATION] = shiftedOffset | 0xFC000000;
+        state->regs[PROGRAM_COUNTER_LOCATION] += (shiftedOffset | SIGN_EXTEND_MASK) - PC_OFFSET;
     else
-        state->regs[PROGRAM_COUNTER_LOCATION] = shiftedOffset;
+        state->regs[PROGRAM_COUNTER_LOCATION] += shiftedOffset - PC_OFFSET;
 }
 
 // Multiply Instruction
-void multiply(DECODED *executableInstr, ARMState *state) {
+void multiply(DECODE *instrToDecode, ARMState *state) {
+    uint32_t rm = instrToDecode->opReg3, rs = instrToDecode->opReg2, rn = instrToDecode->opReg1;
+    bool accumulate = instrToDecode->op1;
+    uint32_t result = rm * rs + (rn * accumulate);
+    state->regs[instrToDecode->destReg] = result;
+    if (instrToDecode->op2) {
+        uint32_t nBit = result & N_MASK;
+        uint32_t zBit = !((bool) result) << 30; // Left shifting by 30 adjusts the zero flag accordingly.
+        state->regs[CPSR_LOCATION] = nBit + zBit + (state->regs[CPSR_LOCATION] & Z_AND_N_MASK);
+    }
 }
 
+// PROCESS
+bool getImmediate(DECODE *instrToDecode) {
+    return instrToDecode->op1;
+}
+
+bool getSetCond(DECODE *instrToDecode) {
+    return instrToDecode->op2;
+}
+
+bool getRnNumber(DECODE *instrToDecode) {
+    return instrToDecode->opReg1;
+}
+
+bool getRdNumber(DECODE *instrToDecode) {
+    return instrToDecode->destReg;
+}
+
+uint8_t getOpCode(uint32_t bigEndianInstr) {
+    uint32_t opCode = bigEndianInstr >> 21; // Right shifting by 21 puts opCode in the bottom 4 bytes.
+    uint32_t mask = 0x0000000F;
+    return (uint8_t) opCode & mask;
+}
+
+uint16_t getOperand2(uint32_t bigEndianInstr) {
+    uint32_t mask = 0x00000FFF;
+    return (uint16_t) bigEndianInstr & mask;
+}
+
+uint8_t getCond(uint32_t bigEndianInstr) {
+    bigEndianInstr >>= BITS_IN_THREE_BYTES + BITS_IN_NIBBLE;
+    uint32_t mask = 0x0000000F;
+    return (uint8_t) bigEndianInstr & mask;
+}
+
+uint32_t rotateRight(uint32_t operand, uint8_t n) {
+    uint32_t a = operand >> n;
+    uint32_t b = operand << (32 - n);
+    return a | b;
+}
+
+// WORKS BUT NOT THE WAY THE SPEC WANTS IT TO.
+/*uint32_t aRS(uint32_t regMVal, uint8_t amount) {
+    bool signBit = 0x80000000 & regMVal;
+    return (regMVal >> amount) + ((signBit * (int) (pow(2, amount) - 1)) << (32 - amount));
+}*/
+
 // Process Instruction
-void process(DECODED *executableInstr, ARMState *state) {}
+uint32_t processOperand2(uint32_t bigEndianInstr, bool immediate, ARMState *state) {
+    uint16_t operand2 = getOperand2(bigEndianInstr);
+    if (immediate) {
+        // IS IMMEDIATE
+        uint8_t rotateVal = operand2 >> 7; // Should this be 8???
+        uint32_t imm = operand2 & 0x00FF;
+        return rotateRight(imm, rotateVal);
+    } else {
+        // IS A REGISTER
+        uint8_t regM = operand2 & 0x000F;
+        uint8_t shift = operand2 >> 4;
+        uint8_t shiftType = (shift >> 0x1) & 0x3;
+        uint8_t amount;
+        if ((shift & 0x1) == 0) {
+            amount = shift >> 3;
+        } else {
+            uint8_t index = shift >> 4;
+            amount = state->regs[index] & 0x0000000F;
+        }
+        uint32_t regMVal = state->regs[regM];
+        switch (shiftType) {
+            case 0:
+                // Logical Left
+                return regMVal << amount;
+            case 1:
+                // Logical Right
+                return regMVal >> amount;
+            case 2:
+                // Arithmetic Right
+                // return aRS(regMVal, amount);
+                break;
+            case 3:
+                // Rotate right
+                return rotateRight(regMVal, amount);
+            default:
+                return 0;
+        }
+    }
+}
+
+void processOpCode(DECODE *decoded, ARMState *state) {
+    uint8_t opCode = getOpCode(decoded->bigEndianInstr);
+    uint32_t rNContent = state->regs[getRnNumber(decoded)];
+    uint32_t processedOperand2 = processOperand2(decoded->bigEndianInstr, getImmediate(decoded), state);
+    uint32_t result;
+    switch (opCode) {
+        case 0:
+            result = rNContent & processedOperand2;
+            break;
+        case 1:
+            result = rNContent ^ processedOperand2;
+            break;
+        case 2:
+            result = rNContent - processedOperand2;
+            break;
+        case 3:
+            result = processedOperand2 - rNContent;
+            break;
+        case 4:
+            result = processedOperand2 + rNContent;
+            break;
+        case 8:
+            result = rNContent & processedOperand2;
+            break;
+        case 9:
+            result = rNContent ^ processedOperand2;
+            break;
+        case 10:
+            result = rNContent - processedOperand2;
+            break;
+        case 12:
+            result = rNContent | processedOperand2;
+            break;
+        case 13:
+            result = processedOperand2;
+            break;
+        default:
+            break;
+    }
+}
+
+void process(DECODE *executableInstr, ARMState *state) {}
+
+//Returns shift type
+SHIFTER *shiftType(uint32_t eConverted, SHIFTER *blank) {
+    uint32_t typemask = 0x60;
+    uint32_t distanceMask = 0xf00;
+    int opCode = (eConverted & 0x60) >> 5;
+    SHIFTTYPE type;
+    type = (eConverted & typemask) >> 5; // Is this required?
+    blank->rotateAmount = ((eConverted & distanceMask) >> 8) * 2;
+    blank->op2IsImm = ((0x02000000 & eConverted) >> 25);
+    uint32_t valueForImmMask = 0xff;
+    blank->valueForImm = valueForImmMask & eConverted;
+    blank->registerToGetValueFrom = 0xf & eConverted;
+    blank->integerForRegister = ((0xf80 & eConverted) >> 7);
+    blank->setFlags = (eConverted & 0x10000) >> 20;
+
+    if (opCode == 3) {
+        type = ROTATERIGHT;
+    } else if (opCode == 2) {
+        type = ARITHMETIC;
+    } else if (opCode == 1) {
+        type = LOGICALRIGHT;
+    } else {
+        type = LOGICALLEFT;
+    }
+    blank->shiftType = type;
+
+    return blank;
+}
+
+uint32_t shift(SHIFTER shifter, ARMState *state) {
+    uint32_t result;
+    int carryout;
+    if (!shifter.op2IsImm) {
+        int valueToBeShifted = state->regs[shifter.registerToGetValueFrom];
+        switch (shifter.shiftType) {
+            case LOGICALLEFT:
+                carryout = (valueToBeShifted & (1 << (31 - shifter.integerForRegister)))
+                        >> (31 - shifter.integerForRegister);
+                result = valueToBeShifted >> shifter.integerForRegister;
+                break;
+            case LOGICALRIGHT:
+                carryout = (valueToBeShifted & (1 << (shifter.integerForRegister - 1)))
+                        >> (shifter.integerForRegister - 1);
+                result = valueToBeShifted >> shifter.integerForRegister;
+                break;
+            case ARITHMETIC:
+                carryout = (valueToBeShifted & (1 << (shifter.integerForRegister - 1)))
+                        >> (shifter.integerForRegister - 1);
+                result = valueToBeShifted >> shifter.integerForRegister;
+                if ((valueToBeShifted & 1 << 31) == 1 << 31) { //if the last bit is one then the number is negative
+                    int mask = 1 << 31;
+                    for (int i = 0; i < valueToBeShifted; i++) {
+                        result = result | mask;
+                        mask = mask >> 1;
+                    }
+
+                }
+                break;
+            case ROTATERIGHT:
+                carryout = (valueToBeShifted & (1 << (shifter.integerForRegister - 1)))
+                        >> (shifter.integerForRegister - 1);
+                uint32_t rightSide = valueToBeShifted >> shifter.valueForImm;
+                uint32_t leftSide = valueToBeShifted << (32 - shifter.valueForImm);
+                result = leftSide || rightSide;
+                break;
+        }
+
+
+    } else {
+        result = rotateRight(shifter.valueForImm, shifter.rotateAmount);
+        int carryoutMask = 1 << (shifter.rotateAmount - 1);
+        carryout = (shifter.valueForImm & carryoutMask) >> (shifter.rotateAmount - 1);
+    }
+    int ZFLag = (result == 0) ? 1 : 0;
+    int NFlag = ((result & 0x800000000) == 0x800000000) ? 1 : 0;
+    int CSPRSet = NFlag >> 31 | ZFLag >> 30 | carryout >> 29;
+    state->regs[CPSR_LOCATION] = shifter.setFlags ? (state->regs[CPSR_LOCATION] & 0x1fffffff) | CSPRSet
+                                                  : state->regs[CPSR_LOCATION];
+
+    return result;
+}
+
 
 // Transfer Instruction
-void transfer(DECODED *executableInstr, ARMState *state) {}
+void transfer(DECODE *executableInstr, ARMState *state) {}
 
 // Emulator executor used to execute instructions.
-void execute(DECODED *executableInstr, ARMState *state) {
+void execute(DECODE *executableInstr, ARMState *state) {
     if (conditionChecker(executableInstr->bigEndianInstr, state)) {
         switch (executableInstr->instruction) {
             case MULTIPLY:
@@ -162,17 +404,17 @@ void execute(DECODED *executableInstr, ARMState *state) {
                 transfer(executableInstr, state);
                 break;
             case NONE:
-                printf("An error has occurred!");
+                printf("INVALID INSTRUCTION ENTERED!!\n");
                 break;
         }
     }
 }
 
-// Outputs the state of all Non Zero Memory after program has ended. 
-void outputNonZeroMem(ARMState *state, int noOfInstructions) {
+// Outputs the state of all Non Zero Memory after program has ended.
+void outputNonZeroMem(ARMState *state, int noOfBytesInFile) {
     printf("Non-Zero memory:");
-    for (int i = 0; i < noOfInstructions; i += 4) {
-        if (state->memory[i]) {
+    for (int i = 0; i < noOfBytesInFile; i += NUMBER_OF_BYTES_IN_INSTR) {
+        if (state->memory[i] || state->memory[i + 1] || state->memory[i + 2] || state->memory[i + 3]) {
             printf("\n0x%08x: 0x%02x%02x%02x%02x", i, state->memory[i], state->memory[i + 1], state->memory[i + 2],
                    state->memory[i + 3]);
         }
@@ -180,15 +422,15 @@ void outputNonZeroMem(ARMState *state, int noOfInstructions) {
 }
 
 // Outputs the state of registers after program has ended.
-void outputState(ARMState *state, int noOfInstructions) {
+void outputState(ARMState *state, int noOfBytesInFile) {
     uint32_t regState, i;
     for (i = 0; i < NUMBER_OF_REGISTERS - 2; ++i) {
         regState = state->regs[i];
         printf("$%-3d:%11d (0x%08x)\n", i, regState, regState);
     }
-    printf("PC  :%11d (0x%08x)\n", state->regs[i], state->regs[i]);
-    printf("CPSR:%11d (0x%08x)\n", state->regs[i + 1], state->regs[i + 1]);
-    outputNonZeroMem(state, noOfInstructions);
+    printf("PC  :%11d (0x%08x)\n", state->regs[PROGRAM_COUNTER_LOCATION], state->regs[PROGRAM_COUNTER_LOCATION]);
+    printf("CPSR:%11d (0x%08x)\n", state->regs[CPSR_LOCATION], state->regs[CPSR_LOCATION]);
+    outputNonZeroMem(state, noOfBytesInFile);
 }
 
 // Fetches the next instruction.
@@ -202,20 +444,21 @@ void fetch(ARMState *state, uint32_t *fetched) {
 // An instruction is 4 bytes. The pipeline takes an instruction and decodes it
 // while simultaneously executing the previously decoded instruction.
 // The PC is always 8 bytes greater than the address of the instruction being executed.
-void pipe(ARMState *state, int noOfInstructions) {
-    uint32_t fetchedInstr[4];
-    DECODED previouslyDecodedInstruction = {INIT_ZERO_VAL, NONE, INIT_ZERO_VAL, INIT_ZERO_VAL, INIT_ZERO_VAL,
-                                            INIT_ZERO_VAL, false, false, false, false};
-    bool first = true;
-    bool decoded = false;
+void pipe(ARMState *state, int noOfBytesInFile) {
+    uint32_t fetchedInstr[NUMBER_OF_BYTES_IN_INSTR];
+    DECODE previouslyDecodedInstruction = {INIT_ZERO_VAL, NONE, INIT_ZERO_VAL, INIT_ZERO_VAL, INIT_ZERO_VAL,
+                                           INIT_ZERO_VAL, false, false, false, false};
+    bool firstIteration = true;
+    bool firstDecode;
     while (true) {
-        if (first) {
+        if (firstIteration) {
             fetch(state, fetchedInstr);
-            first = false;
-        } else if (!decoded) {
+            firstIteration = false;
+            firstDecode = true;
+        } else if (firstDecode) {
             decode(fetchedInstr[0], fetchedInstr[1], fetchedInstr[2], fetchedInstr[3], &previouslyDecodedInstruction);
             fetch(state, fetchedInstr);
-            decoded = true;
+            firstDecode = false;
         } else if (previouslyDecodedInstruction.bigEndianInstr) {
             execute(&previouslyDecodedInstruction, state);
             decode(fetchedInstr[0], fetchedInstr[1], fetchedInstr[2], fetchedInstr[3], &previouslyDecodedInstruction);
@@ -223,9 +466,9 @@ void pipe(ARMState *state, int noOfInstructions) {
         } else {
             break;
         }
-        state->regs[PROGRAM_COUNTER_LOCATION] += 4; // PROGRAM COUNTER
+        state->regs[PROGRAM_COUNTER_LOCATION] += NUMBER_OF_BYTES_IN_INSTR; // PROGRAM COUNTER
     }
-    outputState(state, noOfInstructions);
+    outputState(state, noOfBytesInFile);
 }
 
 // Checks if the input file is null.
@@ -254,18 +497,14 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     ARMState state;
     FILE *binaryFile;
-    binaryFile = fopen(argv[1], "rb");
+    binaryFile = fopen(argv[ARG_WITH_FILE], "rb");
     if (isFileNull(binaryFile))
         return EXIT_FAILURE;
     initialiseState(&state);
-    int noOfInstructions = readFromBinFile(&state, binaryFile);
-    if (noOfInstructions == ALLOCATION_ERROR)
+    int noOfBytesInFile = readFromBinFile(&state, binaryFile);
+    if (noOfBytesInFile == ALLOCATION_ERROR)
         return EXIT_FAILURE;
-    //    for (int i = 0; i < noOfInstructions; i++) {
-    //    printf("%02x ", state.memory[i]);
-    //  }
-    printf("\n"); // --> DEBUG READING FROM FILE
-    pipe(&state, noOfInstructions);
+    pipe(&state, noOfBytesInFile);
     free(state.memory);
     return EXIT_SUCCESS;
 }
