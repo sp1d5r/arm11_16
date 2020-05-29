@@ -115,119 +115,12 @@ bool conditionChecker(uint32_t bigEndianInstr, ARMState *state) {
     return (bigEndianInstr & COND_FIELD_MASK) == state->regs[CPSR_LOCATION]; // NO NEED TO SHIFT HERE!
 }
 
-// Branch Instruction
-void branch(DECODE *instrToDecode, ARMState *state) {
-    uint32_t shiftedOffset = (instrToDecode->bigEndianInstr & OFFSET_MASK) << OFFSET_SHIFT;
-    bool signBit = (shiftedOffset & SIGN_BIT_MASK);
-    if (signBit)
-        state->regs[PROGRAM_COUNTER_LOCATION] += (shiftedOffset | SIGN_EXTEND_MASK) - PC_OFFSET;
-    else
-        state->regs[PROGRAM_COUNTER_LOCATION] += shiftedOffset - PC_OFFSET;
-}
-
-// Multiply Instruction
-void multiply(DECODE *instrToDecode, ARMState *state) {
-    uint32_t rm = instrToDecode->opReg3, rs = instrToDecode->opReg2, rn = instrToDecode->opReg1;
-    bool accumulate = instrToDecode->op1;
-    uint32_t result = rm * rs + (rn * accumulate);
-    state->regs[instrToDecode->destReg] = result;
-    if (instrToDecode->op2) {
-        uint32_t nBit = result & N_MASK;
-        uint32_t zBit = !((bool) result) << 30; // Left shifting by 30 adjusts the zero flag accordingly.
-        state->regs[CPSR_LOCATION] = nBit + zBit + (state->regs[CPSR_LOCATION] & Z_AND_N_MASK);
-    }
-}
-
-// PROCESS
-bool getImmediate(DECODE *instrToDecode) {
-    return instrToDecode->op1;
-}
-
-bool getSetCond(DECODE *instrToDecode) {
-    return instrToDecode->op2;
-}
-
-uint8_t getRnNumber(DECODE *instrToDecode) {
-    return instrToDecode->opReg1;
-}
-
-uint8_t getRdNumber(DECODE *instrToDecode) {
-    return instrToDecode->destReg;
-}
-
-uint8_t getOpCode(uint32_t bigEndianInstr) {
-    uint32_t opCode = bigEndianInstr >> 21; // Right shifting by 21 puts opCode in the bottom 4 bytes.
-    uint32_t mask = 0x0000000F;
-    return (uint8_t) opCode & mask;
-}
-
-uint16_t getOperand2(uint32_t bigEndianInstr) {
-    uint32_t mask = 0x00000FFF;
-    return (uint16_t) bigEndianInstr & mask;
-}
-
-uint8_t getCond(uint32_t bigEndianInstr) {
-    bigEndianInstr >>= BITS_IN_THREE_BYTES + BITS_IN_NIBBLE;
-    uint32_t mask = 0x0000000F;
-    return (uint8_t) bigEndianInstr & mask;
-}
 
 uint32_t rotateRight(uint32_t operand, uint8_t n) {
     uint32_t a = operand >> n;
     uint32_t b = operand << (32 - n);
     return a | b;
 }
-
-// Process Instruction
-uint32_t processOperand2(uint32_t bigEndianInstr, ARMState *state) {
-    SHIFTER blank;
-    SHIFTER shiftType = shiftType(bigEndianInstr, &blank);
-    uint32_t result = shift(shiftType, state);
-    return result;
-}
-
-void processOpCode(DECODE *decoded, ARMState *state) {
-    uint8_t opCode = getOpCode(decoded->bigEndianInstr);
-    uint32_t rNContent = state->regs[getRnNumber(decoded)];
-    uint32_t processedOperand2 = processOperand2(decoded->bigEndianInstr, getImmediate(decoded), state);
-    uint32_t result;
-    switch (opCode) {
-        case 0:
-            result = rNContent & processedOperand2;
-            break;
-        case 1:
-            result = rNContent ^ processedOperand2;
-            break;
-        case 2:
-            result = rNContent - processedOperand2;
-            break;
-        case 3:
-            result = processedOperand2 - rNContent;
-            break;
-        case 4:
-            result = processedOperand2 + rNContent;
-            break;
-        case 8:
-            result = rNContent & processedOperand2;
-            break;
-        case 9:
-            result = rNContent ^ processedOperand2;
-            break;
-        case 10:
-            result = rNContent - processedOperand2;
-            break;
-        case 12:
-            result = rNContent | processedOperand2;
-            break;
-        case 13:
-            result = processedOperand2;
-            break;
-        default:
-            break;
-    }
-}
-
-void process(DECODE *executableInstr, ARMState *state) {}
 
 //Returns shift type
 SHIFTER *shiftType(uint32_t eConverted, SHIFTER *blank) {
@@ -314,6 +207,118 @@ uint32_t shift(SHIFTER shifter, ARMState *state) {
 
     return result;
 }
+
+// Branch Instruction
+void branch(DECODE *instrToDecode, ARMState *state) {
+    uint32_t shiftedOffset = (instrToDecode->bigEndianInstr & OFFSET_MASK) << OFFSET_SHIFT;
+    bool signBit = (shiftedOffset & SIGN_BIT_MASK);
+    if (signBit)
+        state->regs[PROGRAM_COUNTER_LOCATION] += (shiftedOffset | SIGN_EXTEND_MASK) - PC_OFFSET;
+    else
+        state->regs[PROGRAM_COUNTER_LOCATION] += shiftedOffset - PC_OFFSET;
+}
+
+// Multiply Instruction
+void multiply(DECODE *instrToDecode, ARMState *state) {
+    uint32_t rm = instrToDecode->opReg3, rs = instrToDecode->opReg2, rn = instrToDecode->opReg1;
+    bool accumulate = instrToDecode->op1;
+    uint32_t result = rm * rs + (rn * accumulate);
+    state->regs[instrToDecode->destReg] = result;
+    if (instrToDecode->op2) {
+        uint32_t nBit = result & N_MASK;
+        uint32_t zBit = !((bool) result) << 30; // Left shifting by 30 adjusts the zero flag accordingly.
+        state->regs[CPSR_LOCATION] = nBit + zBit + (state->regs[CPSR_LOCATION] & Z_AND_N_MASK);
+    }
+}
+
+// PROCESS
+bool getImmediate(DECODE *instrToDecode) {
+    return instrToDecode->op1;
+}
+
+bool getSetCond(DECODE *instrToDecode) {
+    return instrToDecode->op2;
+}
+
+uint8_t getRnNumber(DECODE *instrToDecode) {
+    return instrToDecode->opReg1;
+}
+
+uint8_t getRdNumber(DECODE *instrToDecode) {
+    return instrToDecode->destReg;
+}
+
+uint8_t getOpCode(uint32_t bigEndianInstr) {
+    uint32_t opCode = bigEndianInstr >> 21; // Right shifting by 21 puts opCode in the bottom 4 bytes.
+    uint32_t mask = 0x0000000F;
+    return (uint8_t) opCode & mask;
+}
+
+uint16_t getOperand2(uint32_t bigEndianInstr) {
+    uint32_t mask = 0x00000FFF;
+    return (uint16_t) bigEndianInstr & mask;
+}
+
+uint8_t getCond(uint32_t bigEndianInstr) {
+    bigEndianInstr >>= BITS_IN_THREE_BYTES + BITS_IN_NIBBLE;
+    uint32_t mask = 0x0000000F;
+    return (uint8_t) bigEndianInstr & mask;
+}
+
+
+// Process Instruction
+uint32_t processOperand2(uint32_t bigEndianInstr, ARMState *state) {
+    SHIFTER blank;
+    shiftType(bigEndianInstr, &blank);
+    uint32_t result = shift(blank, state);
+    return result;
+}
+
+uint32_t processOpCode(DECODE *decoded, ARMState *state) {
+    uint8_t opCode = getOpCode(decoded->bigEndianInstr);
+    uint32_t rNContent = state->regs[getRnNumber(decoded)];
+    uint32_t processedOperand2 = processOperand2(decoded->bigEndianInstr, state);
+    uint32_t result;
+    switch (opCode) {
+        case 0:
+            result = rNContent & processedOperand2;
+            break;
+        case 1:
+            result = rNContent ^ processedOperand2;
+            break;
+        case 2:
+            result = rNContent - processedOperand2;
+            break;
+        case 3:
+            result = processedOperand2 - rNContent;
+            break;
+        case 4:
+            result = processedOperand2 + rNContent;
+            break;
+        case 8:
+            result = rNContent & processedOperand2;
+            break;
+        case 9:
+            result = rNContent ^ processedOperand2;
+            break;
+        case 10:
+            result = rNContent - processedOperand2;
+            break;
+        case 12:
+            result = rNContent | processedOperand2;
+            break;
+        case 13:
+            result = processedOperand2;
+            break;
+        default:
+            break;
+    }
+    return result;
+}
+
+void process(DECODE *executableInstr, ARMState *state) {}
+
+
 
 
 // Transfer Instruction
