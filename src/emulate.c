@@ -6,42 +6,7 @@
 
 // Removed -Werror from Makefile but make sure to reinclude it later.
 
-#define PC_OFFSET 8
-#define ARG_WITH_FILE 1
-#define PROGRAM_COUNTER_LOCATION 13
-#define NUMBER_OF_REGISTERS 15
-#define MAX_BYTES 65536
-#define CPSR_LOCATION 14
-#define ALLOCATION_ERROR -1
-#define NUMBER_OF_ARGUMENTS 2
-#define BRANCH_INSTR_MASK 0x08000000
-#define MULTIPLY_INSTR_1_MASK 0x000000F0
-#define MULTIPLY_INSTR_2_MASK 0x0FC00000
-#define TRANSFER_INSTR_MASK 0x04000000
-#define DATA_RN_MASK 0x000F0000
-#define DATA_RD_MASK 0x0000F000
-#define IMMEDIATE_MASK 0x02000000
-#define S_OR_L_MASK 0x00100000
-#define U_MASK 0x00800000
-#define P_MASK 0x01000000
-#define MULTIPLY_RN_MASK 0x0000F000
-#define MULTIPLY_RS_MASK 0x00000F00
-#define MULTIPLY_RD_MASK 0x000F0000
-#define MULTIPLY_RM_MASK 0x0000000F
-#define ACCUMULATE_MASK 0x00200000
-#define COND_FIELD_MASK 0xF0000000
-#define BITS_IN_NIBBLE 4
-#define BITS_IN_BYTE 8
-#define BITS_IN_TWO_BYTES 16
-#define BITS_IN_THREE_BYTES 24
-#define NUMBER_OF_BYTES_IN_INSTR 4
-#define INIT_ZERO_VAL 0
-#define OFFSET_MASK 0x00FFFFFFFF
-#define OFFSET_SHIFT 2
-#define SIGN_BIT_MASK 0x02000000
-#define SIGN_EXTEND_MASK 0xFC000000
-#define N_MASK 0x80000000
-#define Z_AND_N_MASK 0x3FFFFFFF
+#include "defines.c"
 
 // enum for the instructions available.
 typedef enum INSTRUCTION {
@@ -72,8 +37,10 @@ typedef struct SHIFTER {
     uint32_t valueForImm;
     uint32_t rotateAmount;
     uint32_t registerToGetValueFrom;
+    uint32_t registerToGetValueFrom2;
     uint32_t integerForRegister;
     SHIFTTYPE shiftType;
+    bool isShiftReg;
     bool setFlags;
 } SHIFTER;
 
@@ -180,11 +147,11 @@ bool getSetCond(DECODE *instrToDecode) {
     return instrToDecode->op2;
 }
 
-bool getRnNumber(DECODE *instrToDecode) {
+uint8_t getRnNumber(DECODE *instrToDecode) {
     return instrToDecode->opReg1;
 }
 
-bool getRdNumber(DECODE *instrToDecode) {
+uint8_t getRdNumber(DECODE *instrToDecode) {
     return instrToDecode->destReg;
 }
 
@@ -211,51 +178,12 @@ uint32_t rotateRight(uint32_t operand, uint8_t n) {
     return a | b;
 }
 
-// WORKS BUT NOT THE WAY THE SPEC WANTS IT TO.
-/*uint32_t aRS(uint32_t regMVal, uint8_t amount) {
-    bool signBit = 0x80000000 & regMVal;
-    return (regMVal >> amount) + ((signBit * (int) (pow(2, amount) - 1)) << (32 - amount));
-}*/
-
 // Process Instruction
-uint32_t processOperand2(uint32_t bigEndianInstr, bool immediate, ARMState *state) {
-    uint16_t operand2 = getOperand2(bigEndianInstr);
-    if (immediate) {
-        // IS IMMEDIATE
-        uint8_t rotateVal = operand2 >> 7; // Should this be 8???
-        uint32_t imm = operand2 & 0x00FF;
-        return rotateRight(imm, rotateVal);
-    } else {
-        // IS A REGISTER
-        uint8_t regM = operand2 & 0x000F;
-        uint8_t shift = operand2 >> 4;
-        uint8_t shiftType = (shift >> 0x1) & 0x3;
-        uint8_t amount;
-        if ((shift & 0x1) == 0) {
-            amount = shift >> 3;
-        } else {
-            uint8_t index = shift >> 4;
-            amount = state->regs[index] & 0x0000000F;
-        }
-        uint32_t regMVal = state->regs[regM];
-        switch (shiftType) {
-            case 0:
-                // Logical Left
-                return regMVal << amount;
-            case 1:
-                // Logical Right
-                return regMVal >> amount;
-            case 2:
-                // Arithmetic Right
-                // return aRS(regMVal, amount);
-                break;
-            case 3:
-                // Rotate right
-                return rotateRight(regMVal, amount);
-            default:
-                return 0;
-        }
-    }
+uint32_t processOperand2(uint32_t bigEndianInstr, ARMState *state) {
+    SHIFTER blank;
+    SHIFTER shiftType = shiftType(bigEndianInstr, &blank);
+    uint32_t result = shift(shiftType, state);
+    return result;
 }
 
 void processOpCode(DECODE *decoded, ARMState *state) {
@@ -315,6 +243,8 @@ SHIFTER *shiftType(uint32_t eConverted, SHIFTER *blank) {
     blank->registerToGetValueFrom = 0xf & eConverted;
     blank->integerForRegister = ((0xf80 & eConverted) >> 7);
     blank->setFlags = (eConverted & 0x10000) >> 20;
+    blank->isShiftReg = (eConverted >> 4) & 0x1;
+    blank->registerToGetValueFrom2 = (eConverted >> 8) & 0xf;
 
     if (opCode == 3) {
         type = ROTATERIGHT;
@@ -335,11 +265,16 @@ uint32_t shift(SHIFTER shifter, ARMState *state) {
     int carryout;
     if (!shifter.op2IsImm) {
         int valueToBeShifted = state->regs[shifter.registerToGetValueFrom];
+        if (shifter.isShiftReg){
+            uint32_t valueRs = state->regs[shifter.registerToGetValueFrom2];
+            shifter.integerForRegister = valueRs & 0xf;
+        }
+
         switch (shifter.shiftType) {
             case LOGICALLEFT:
                 carryout = (valueToBeShifted & (1 << (31 - shifter.integerForRegister)))
                         >> (31 - shifter.integerForRegister);
-                result = valueToBeShifted >> shifter.integerForRegister;
+                result = valueToBeShifted << shifter.integerForRegister;
                 break;
             case LOGICALRIGHT:
                 carryout = (valueToBeShifted & (1 << (shifter.integerForRegister - 1)))
@@ -356,7 +291,6 @@ uint32_t shift(SHIFTER shifter, ARMState *state) {
                         result = result | mask;
                         mask = mask >> 1;
                     }
-
                 }
                 break;
             case ROTATERIGHT:
@@ -367,8 +301,6 @@ uint32_t shift(SHIFTER shifter, ARMState *state) {
                 result = leftSide || rightSide;
                 break;
         }
-
-
     } else {
         result = rotateRight(shifter.valueForImm, shifter.rotateAmount);
         int carryoutMask = 1 << (shifter.rotateAmount - 1);
