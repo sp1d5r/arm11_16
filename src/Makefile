@@ -13,7 +13,7 @@ assemble: assemble.o
 emulate: emulate.o emulator_utils/pipeline.o emulator_utils/output.o emulator_utils/executeHelper.o emulator_utils/executeInstr.o emulator_utils/shiftInstructions.o emulator_utils/decodeInstr.o
 		$(CC) $^ -o $@
 
-assemble.o: assemble.c
+assemble.o: assemble.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
 
 emulate.o: emulate.c emulator_utils/defines.h
@@ -48,4 +48,5 @@ clean:
 	rm -f emulate
 	rm -f assemble
 	rm -f emulator_utils/*.o
+	rm -f assembler_utils/*.o
 	rm -f emulate.o
