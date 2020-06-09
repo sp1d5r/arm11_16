@@ -613,11 +613,7 @@ u_int32_t convertDPToBinary(char **instruction)
   u_int32_t Rd = getInt(instruction[1]);
   Rd = Rd << 12;
   opCode = getOpCode(opCodeString);
-
-  if (opCode == 8 || opCode == 9 || opCode == 10)
-  {
-    setCond = 1 << 20;
-  }
+  // free(opCodeString);
 
   if (opCode == 0 || opCode == 1 || opCode == 2 || opCode == 3 || opCode == 4 || opCode == 12)
   {
@@ -665,19 +661,6 @@ u_int32_t convertDPToBinary(char **instruction)
  * Params - instruction / array of strings
  * Returns - the 32 bit integer equivalent of the single data transfer instruction
  */
-/*
-u_int32_t convertSDTToBinary(char **instructions){
-    char *instructionName = instructions[0];
-    u_int32_t Rd = getInt(instructions[1]);
-    u_int32_t address = instructions[2];
-
-    if (!(strcomp(instructionName, "ldr"))){
-
-    } else if (!(strcomp(instructionName, "str"))){
-
-    }
-}
-*/
 
 u_int32_t convertSDTToBinary(char **instructions)
 {
@@ -689,7 +672,7 @@ u_int32_t convertSDTToBinary(char **instructions)
   u_int32_t loadFlag = 0;
   if (!(strcmp(loadStore, "ldr")))
   {
-    // u_int32_t loadFlag = 1 << 20;
+    loadFlag = 1 << 20;
   }
 
   if (addressCount == 1)
@@ -706,9 +689,10 @@ u_int32_t convertSDTToBinary(char **instructions)
         createStringArray(movInstruction, 3, 10);
         movInstruction[0] = "mov";
         movInstruction[1] = instructions[1];
-        char hashtag[] = "#";
-        movInstruction[2] = strcat(hashtag, &(instructions[2])[1]);
-        return convertDPToBinary(movInstruction);
+        movInstruction[2] = "#0x02";
+        movInstruction[2] = &(instructions[2])[1];
+        u_int32_t return_value = convertDPToBinary(movInstruction);
+        return return_value;
       }
       else
       {
@@ -729,7 +713,9 @@ u_int32_t convertSDTToBinary(char **instructions)
       // the value stored in teh registers is [rX]
       // Rn = get int of the value held at instruction[3] set offset to 0
       u_int32_t Rn = getInt(instructions[2]) << 16;
-      return TRUECOND + fillerBits + loadFlag + Rn + Rd;
+      u_int32_t pFlag;
+      pFlag = 1 << 24;
+      return TRUECOND + fillerBits + pFlag + loadFlag + Rn + Rd;
     }
   }
   else if (addressCount == 2)
