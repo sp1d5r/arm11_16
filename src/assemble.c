@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include "assembler_utils/assemble.h"
 
@@ -140,7 +141,6 @@ int longestLine(char *filename)
 char **arrayOfArmInstructions(char *filename, int lines)
 {
   // create a 2d array of instructions
-  printf("%i", lines);
   FILE *file;
   file = fopen(filename, "r");
   int longestLine = fileLength(filename);
@@ -169,12 +169,6 @@ char **arrayOfArmInstructions(char *filename, int lines)
     c = fgetc(file);
   }
   text[lines] = "FIN";
-  for (i = 0; i <= lines; i++)
-  {
-    printf("%s", text[i]);
-    printf("\n");
-  }
-
   return text;
 }
 
@@ -403,27 +397,7 @@ void firstPass(SymbTable *table, char **instructions)
  */
 int hexStringToInt(char *string)
 {
-  int size = strlen(string);
-  int result = 0;
-  int power = 0;
-  for (int i = size - 1; i >= 0; i--)
-  {
-    if (string[i] == ']')
-    {
-      continue;
-    }
-    int curr = string[i];
-    if (curr >= 97 && curr >= 102)
-    {
-      result += (curr - 87) * pow1(16, power);
-    }
-    else
-    {
-      result += (curr - 48) * pow1(16, power);
-    }
-    power++;
-  }
-  return result;
+  return (int)strtol(string, NULL, 16);
 }
 
 /*
@@ -433,13 +407,17 @@ int hexStringToInt(char *string)
  */
 int getInt(char *values)
 {
-  if (values[0] == '[' || values[0] == '=')
+  if (values[0] == '[' || values[0] == '=' || values[0] == '#')
   {
     return getInt(values + 1);
   }
-  else if (!(values[0] == '0' && values[1] == 'x'))
+  else if (values[0] == 'r')
   {
     return atoi(values + 1);
+  }
+  else if (!(values[0] == '0' && values[1] == 'x'))
+  {
+    return atoi(values);
   }
   else
   {
@@ -488,7 +466,7 @@ u_int32_t convertBranchToBinary(char **instructions, SymbTable table, int addres
   else
   {
     code = -1;
-    printf("\nissue setting branch code\n");
+    printf("\nIssue setting branch code\n");
   }
   int labelAddress = returnAddressFromSymbolTable(instructions[1], table);
   u_int32_t offset = (labelAddress == -1) ? getInt(instructions[1]) - address - 8 : labelAddress - address - 8;
@@ -523,23 +501,9 @@ u_int32_t convertMultiplyToBinary(char **instructions)
   }
 }
 
-/*
- * convertDPToBinary
- * Params - convertBranchToBinary
- * Returns - the 32 bit integer equivalent of the branch instruction
- */
-u_int32_t convertDPToBinary(char **instruction)
+u_int32_t getOpCode(char *opCodeString)
 {
   u_int32_t opCode = 0;
-  u_int32_t testCode = 0;
-  u_int32_t shift = 0;
-  u_int32_t valueToShift = 0;
-  int arguements = operandTotal(instruction);
-  u_int32_t op2;
-  char *opCodeString = instruction[0];
-  u_int32_t Rd = getInt(instruction[1]);
-  Rd = Rd << 12;
-
   if (!(strcmp(opCodeString, "and")))
   {
     opCode = 0;
@@ -580,89 +544,117 @@ u_int32_t convertDPToBinary(char **instruction)
   {
     opCode = 13;
   }
+  return opCode;
+}
 
-  if (opCode == 8 || opCode == 9 || opCode == 10)
+uint32_t rotateRight(uint32_t operand, uint8_t rotateAmount)
+{
+  uint32_t shift = operand >> rotateAmount;
+  uint32_t cycle = operand << (32 - rotateAmount);
+  return shift | cycle;
+}
+
+u_int32_t processOffset(int offset)
+{
+  u_int32_t origOffset;
+  int change8BitOffset = 1;
+  if (offset == (u_int8_t)offset)
   {
-    testCode = 1 << 20;
-  }
-  opCode = opCode << 21;
-  if ((opCode >> 21) == 13 || (opCode >> 21) == 9 || (opCode >> 21) == 8 || (opCode >> 21) == 10)
-  {
-    if (arguements == 3 && !testCode)
-    {
-      u_int32_t immFlag = 1 << 25;
-      u_int32_t offset = getInt(instruction[2]);
-      return TRUECOND + opCode + immFlag + testCode + Rd + offset;
-    }
-    else if (arguements == 3)
-    {
-      if (registerRep(instruction[2]))
-      {
-        u_int32_t Rn = getInt(instruction[2]) << 16;
-        return TRUECOND + Rn + Rd + opCode + testCode;
-      }
-      else
-      {
-        u_int32_t Rm = getInt(instruction[2]);
-        char *shiftType = instruction[3];
-        if (!(strcmp(shiftType, "lsl")))
-        {
-          shift = 0;
-        }
-        else if (!(strcmp(shiftType, "lsr")))
-        {
-          shift = 1;
-        }
-        else if (!(strcmp(shiftType, "asr")))
-        {
-          shift = 2;
-        }
-        else if (!(strcmp(shiftType, "ror")))
-        {
-          shift = 3;
-        }
-        shift = shift << 5;
-        valueToShift = getInt(instruction[4]);
-        valueToShift = valueToShift << 7;
-        return TRUECOND + opCode + testCode + valueToShift + Rm + Rd + shift;
-      }
-    }
+    return (u_int32_t)offset;
   }
   else
   {
-    u_int32_t Rn = getInt(instruction[2]) << 16;
-    if (arguements == 4)
+    //TODO - FIND ROTATE RIGHT AMOUNT
+    int rotateAmount = 0;
+    while (offset != 0)
     {
-      op2 = getInt(instruction[3]);
-      return op2 + Rn + TRUECOND + Rd + (1 << 20) + opCode;
+
+      if (((offset & 0x00FFFFFF) == 0) && change8BitOffset)
+      {
+        origOffset = offset;
+        change8BitOffset = 0;
+      }
+      offset <<= 2;
+      rotateAmount++;
     }
-    else
+    if (rotateAmount >= 16)
     {
-      u_int32_t Rm = getInt(instruction[3]);
-
-      char *shiftType = instruction[4];
-      if (!(strcmp(shiftType, "lsl")))
-      {
-        shift = 0;
-      }
-      else if (!(strcmp(shiftType, "lsr")))
-      {
-        shift = 1;
-      }
-      else if (!(strcmp(shiftType, "asr")))
-      {
-        shift = 2;
-      }
-      else if (!(strcmp(shiftType, "ror")))
-      {
-        shift = 3;
-      }
-      shift = shift << 5;
-      valueToShift = getInt(instruction[5]);
-      valueToShift = valueToShift << 7;
-
-      return valueToShift + TRUECOND + shift + Rm + opCode + testCode + Rn;
+      perror("Can't represent number in 12 Bit");
+      exit(EXIT_FAILURE);
     }
+    return (u_int32_t)(rotateAmount << 8) + (u_int8_t)((origOffset & 0xFF000000) >> 24);
+  }
+}
+
+u_int32_t processOperand2(char *operand2)
+{
+  if (operand2[0] == '#')
+  {
+    u_int32_t offset = processOffset(getInt(operand2));
+    return offset;
+  }
+  else
+  {
+    uint32_t rM = getInt(operand2);
+    return rM;
+  }
+}
+
+/*
+ * convertDPToBinary
+ * Params - convertBranchToBinary
+ * Returns - the 32 bit integer equivalent of the branch instruction
+ */
+u_int32_t convertDPToBinary(char **instruction)
+{
+  u_int32_t opCode = 0;
+  u_int32_t setCond = 0;
+  char *opCodeString = instruction[0];
+  u_int32_t Rd = getInt(instruction[1]);
+  Rd = Rd << 12;
+  opCode = getOpCode(opCodeString);
+
+  if (opCode == 8 || opCode == 9 || opCode == 10)
+  {
+    setCond = 1 << 20;
+  }
+
+  if (opCode == 0 || opCode == 1 || opCode == 2 || opCode == 3 || opCode == 4 || opCode == 12)
+  {
+    // add, eor, sub, rsb, add, orr
+    u_int32_t Rn = (getInt(instruction[2])) << 16;
+    u_int32_t immBit = 0;
+    u_int32_t operand2 = processOperand2(instruction[3]);
+    if (instruction[3][0] == '#')
+    {
+      immBit = 1 << 25;
+    }
+    return TRUECOND + immBit + (opCode << 21) + setCond + Rn + Rd + operand2;
+  }
+  else if (opCode == 13)
+  {
+    //mov
+    u_int32_t immBit = 0;
+    u_int32_t operand2 = processOperand2(instruction[2]);
+    if (instruction[2][0] == '#')
+    {
+      immBit = 1 << 25;
+    }
+    return TRUECOND + immBit + (opCode << 21) + setCond + Rd + operand2;
+  }
+  else
+  {
+    //tst, teq, cmp
+    setCond = 1 << 20;
+    u_int32_t immBit = 0;
+    u_int32_t operand2 = processOperand2(instruction[2]);
+    Rd <<= 4;
+
+    if (instruction[2][0] == '#')
+    {
+      immBit = 1 << 25;
+    }
+    return TRUECOND + immBit + (opCode << 21) + setCond + Rd + operand2;
   }
   return EXIT_FAILURE;
 }
@@ -932,8 +924,6 @@ void assembler(char **instructions, char *filename)
       break;
     case LDR:
     case STR:;
-      printf("got here\n");
-
       binInstruction = convertSDTToBinary(commands);
       break;
     case BEQ:
@@ -955,7 +945,6 @@ void assembler(char **instructions, char *filename)
 
     binInstruction = littleEndianConv(binInstruction);
     writeToFile(fileToWriteTo, binInstruction);
-    printf("it got to this part");
     i++;
   }
 
