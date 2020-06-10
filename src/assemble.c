@@ -668,7 +668,27 @@ void replaceEqualsWithHashtag(char* str1, char* str2){
     }
 }
 
-u_int32_t convertSDTToBinary(char **instructions)
+// datastructure
+// takes instruction where it made
+// the value it stores
+int getSize(int *values){
+  int i=0;
+  while(*values){
+    i++;
+    values++;
+  }
+  return i;
+}
+
+void updateInts(int *values, int value){
+  values = realloc(values, getSize(values)* sizeof(int));
+  while(*values){
+    values++;
+  }
+  *values = value;
+}
+
+u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions)
 {
     char *loadStore = instructions[0];
     strcpy(loadStore, instructions[0]);
@@ -705,13 +725,31 @@ u_int32_t convertSDTToBinary(char **instructions)
                 // place numeric expression at end of assembler file
                 // calculate offset between the current instruction and the newly generated on
                 // recurse on "ldr, (instruction[1]), [PC, offset]"
-                char **newLdrInstruction = (char **)calloc(4, sizeof(char *));
-                createStringArray(newLdrInstruction, 4, 10);
-                newLdrInstruction[0] = "ldr";
-                newLdrInstruction[1] = instructions[1];
-                newLdrInstruction[2] = "[PC";
-                newLdrInstruction[3] = "offset]"; // <-- calculate this one...
-                return convertSDTToBinary(newLdrInstruction);
+	      
+               
+		// calculates offset correctly <-- do not change 
+		int offset = *total_instructions - current_instruction - 8;
+		*total_instructions = *total_instructions + 4 ;
+
+		// working
+
+		char **ldrInstruction = (char **) calloc(4, sizeof(char *));
+		createStringArray(ldrInstruction, 4, 10);
+		ldrInstruction[0] = "ldr";
+		strcpy(ldrInstruction[1], instructions[1]);
+		
+		ldrInstruction[2] = "[r16";
+
+		// offset calculated in hex
+		char str[10];
+		sprintf(str, "=0x%04x]", offset);
+		ldrInstruction[3] = str;
+
+		// check if new value is being added to a list of 
+		
+		
+		u_int32_t return_value = 0;
+                return return_value;
             }
         }
         else
@@ -738,6 +776,8 @@ u_int32_t convertSDTToBinary(char **instructions)
         {
             pFlag = 1 << 24;
         }
+
+	// check if 
 
         u_int32_t Rn = 0;
         u_int32_t offset = 0;
@@ -887,9 +927,13 @@ void writeToFile(FILE *file, u_int32_t instruction)
     fwrite(&fourthByte, sizeof(u_int8_t), 1, file);
 }
 
-void assembler(char **instructions, char *filename)
+void assembler(char **instructions, char *filename, int total_number_instructions)
 {
     FILE *fileToWriteTo = fopen(filename, "w");
+    total_number_instructions *= 4;
+    int *no_instructions = malloc(1*sizeof(int));
+    *no_instructions = total_number_instructions;
+    // int *finalNumbers = calloc(1,sizeof(int));
     int i = 0;
     SymbTable table;
     firstPass(&table, instructions);
@@ -918,7 +962,7 @@ void assembler(char **instructions, char *filename)
                 break;
             case LDR:
             case STR:;
-                binInstruction = convertSDTToBinary(commands);
+	      binInstruction = convertSDTToBinary(commands, i*4, no_instructions);
                 break;
             case BEQ:
             case BNE:
@@ -941,6 +985,9 @@ void assembler(char **instructions, char *filename)
         writeToFile(fileToWriteTo, binInstruction);
         i++;
     }
+
+    // take each number and add to end of while
+    // i last instruciton
 
     fclose(fileToWriteTo);
 }
@@ -967,6 +1014,6 @@ int main(int argc, char **argv)
     // separete out each lines into array of chars for the passes
 
     // Pass 1 - Symbol Address pairing
-    assembler(instructionArray, argv[2]);
+    assembler(instructionArray, argv[2], fileLength(arm_filename));
     return EXIT_SUCCESS;
 }
