@@ -938,7 +938,7 @@ u_int32_t convertLSLToBinary(char **instruction)
  * Returns - the enum MNEMONIC of the instruction
  */
 MNEMONICS getMnemonic(char **instruction)
-{
+ {
     char *opcode = instruction[0];
     if (!strcmp(opcode, "add"))
     {
