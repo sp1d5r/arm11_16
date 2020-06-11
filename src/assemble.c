@@ -781,7 +781,12 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             pFlag = 1 << 24;
         }
 
-	// check if 
+	// check if I flag needs to be set:
+	int iFlag = 0;
+	
+	if (instructions[3][0]=='r'){
+	  iFlag = 1 <<25;
+	}
 
         u_int32_t Rn = 0;
         u_int32_t offset = 0;
@@ -798,7 +803,42 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             Rn = getInt(instructions[2]) << 16;
             offset = getInt(&(instructions[3])[1]);
         }
-        return TRUECOND + fillerBits + pFlag + uBit + loadFlag + Rd + Rn + offset;
+        return TRUECOND + fillerBits + iFlag + pFlag + uBit + loadFlag + Rd + Rn + offset;
+    } else {
+      // ignore instruction[3] since it's a minus instruction
+      int pFlag = 0;
+        if (strchr(instructions[2], ']') != NULL)
+        {
+            pFlag = 0;
+        }
+        else
+        {
+            pFlag = 1 << 24;
+        }
+
+	// check if I flag needs to be set:
+	int iFlag = 0;
+	
+	if (instructions[4][0]=='r'){
+	  iFlag = 1 <<25;
+	}
+
+        u_int32_t Rn = 0;
+        u_int32_t offset = 0;
+        if (pFlag == 0)
+        {
+            // post indexing
+            Rn = getInt(instructions[2]) << 16;
+            offset = getInt(instructions[4]);
+        }
+        else
+        {
+            // pre indexing
+            // figure out how to get rid of the brackets ..
+            Rn = getInt(instructions[2]) << 16;
+            offset = getInt(instructions[4]);
+        }
+        return TRUECOND + fillerBits + iFlag + pFlag  + loadFlag + Rd + Rn + offset;
     }
     return EXIT_FAILURE;
 }
