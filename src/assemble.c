@@ -853,7 +853,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
         }
         return TRUECOND + fillerBits + iFlag + pFlag + uBit + loadFlag + Rd + Rn + offset;
     }
-    else
+    else if (addressCount == 3)
     {
         // ignore instruction[3] since it's a minus instruction
         int pFlag = 0;
@@ -890,8 +890,46 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             offset = getInt(instructions[4]);
         }
         return TRUECOND + fillerBits + iFlag + pFlag + loadFlag + Rd + Rn + offset;
+    } else {
+     
+      int pFlag = 0;
+      u_int uBit = 1 << 23;
+      if (strchr(instructions[2], ']') != NULL)
+        {
+	  pFlag = 0;
+        }
+      else
+        {
+	  pFlag = 1 << 24;
+        }
+
+      // check if I flag needs to be set:
+      int iFlag = 0;
+      iFlag = 1 << 25;
+
+      u_int32_t Rn = 0;
+      Rn = getInt(instructions[2]) << 16;
+      u_int32_t offset = processOperand2(&(instructions)[3]);
+      
+      return TRUECOND + fillerBits + uBit + iFlag +  pFlag + loadFlag + Rd + Rn + offset;
     }
     return EXIT_FAILURE;
+}
+
+
+u_int32_t convertLSLToBinary(char **instruction)
+{
+    char **movInstruction = (char **)calloc(6, sizeof(char *));
+    createStringArray(movInstruction, 6, 10);
+    movInstruction[0] = "mov";
+    movInstruction[1] = instruction[1];
+    movInstruction[2] = instruction[1];
+    movInstruction[3] = "lsl";
+    movInstruction[4] = instruction[2];
+    movInstruction[5] = "end";
+
+    u_int32_t returnValue = convertDPToBinary(movInstruction);
+    return returnValue;
 }
 
 /*
@@ -990,6 +1028,10 @@ MNEMONICS getMnemonic(char **instruction)
     {
         return ANDEQ;
     }
+    else if (!strcmp(opcode, "lsl"))
+    {
+        return LSL;
+    }
     else
     {
         return LABEL;
@@ -1077,6 +1119,9 @@ void assembler(char **instructions, char *filename, int total_number_instruction
             continue;
         case ANDEQ:
             binInstruction = 0;
+            break;
+        case LSL:
+            binInstruction = convertLSLToBinary(commands);
             break;
         }
 
