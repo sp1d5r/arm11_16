@@ -853,7 +853,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
         }
         return TRUECOND + fillerBits + iFlag + pFlag + uBit + loadFlag + Rd + Rn + offset;
     }
-    else
+    else if (addressCount == 3)
     {
         // ignore instruction[3] since it's a minus instruction
         int pFlag = 0;
@@ -890,6 +890,28 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             offset = getInt(instructions[4]);
         }
         return TRUECOND + fillerBits + iFlag + pFlag + loadFlag + Rd + Rn + offset;
+    } else {
+     
+      int pFlag = 0;
+      u_int uBit = 1 << 23;
+      if (strchr(instructions[2], ']') != NULL)
+        {
+	  pFlag = 0;
+        }
+      else
+        {
+	  pFlag = 1 << 24;
+        }
+
+      // check if I flag needs to be set:
+      int iFlag = 0;
+      iFlag = 1 << 25;
+
+      u_int32_t Rn = 0;
+      Rn = getInt(instructions[2]) << 16;
+      u_int32_t offset = processOperand2(&(instructions)[3]);
+      
+      return TRUECOND + fillerBits + uBit + iFlag +  pFlag + loadFlag + Rd + Rn + offset;
     }
     return EXIT_FAILURE;
 }
@@ -900,7 +922,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
  * Returns - the enum MNEMONIC of the instruction
  */
 MNEMONICS getMnemonic(char **instruction)
-{
+ {
     char *opcode = instruction[0];
     if (!strcmp(opcode, "add"))
     {
