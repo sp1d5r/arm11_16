@@ -586,16 +586,61 @@ u_int32_t processOffset(int offset)
     }
 }
 
-u_int32_t processOperand2(char *operand2)
+u_int32_t getShiftNum(char *shift)
 {
-    if (operand2[0] == '#')
+    if (strcmp("lsl", shift) == 0)
     {
-        u_int32_t offset = processOffset(getInt(operand2));
+        return 0;
+    }
+    else if (strcmp("lsr", shift) == 0)
+    {
+        return 1;
+    }
+    else if (strcmp("asr", shift) == 0)
+    {
+        return 2;
+    }
+    else if (strcmp("ror", shift) == 0)
+    {
+        return 3;
+    }
+    exit(EXIT_FAILURE);
+}
+
+u_int32_t getShiftAmount(char **shiftOperand)
+{
+    u_int32_t shiftType = getShiftNum(shiftOperand[0]);
+    u_int32_t shiftSpec = getInt(shiftOperand[1]);
+    if (shiftOperand[1][0] == '#')
+    {
+        shiftSpec <<= 7;
+    }
+    else
+    {
+        shiftSpec <<= 8;
+        shiftSpec |= 16;
+    }
+    shiftType <<= 5;
+    return shiftSpec + shiftType;
+}
+
+u_int32_t processOperand2(char **operand2)
+{
+    if (operand2[0][0] == '#')
+    {
+        u_int32_t offset = processOffset(getInt(operand2[0]));
         return offset;
     }
     else
     {
-        uint32_t rM = getInt(operand2);
+        int length = operandTotal(operand2);
+        u_int32_t rM = getInt(operand2[0]);
+        if (length == 3)
+        {
+            u_int32_t shiftAmount = getShiftAmount(&operand2[1]);
+            rM += shiftAmount;
+        }
+        printf("%i\n", length);
         return rM;
     }
 }
@@ -624,7 +669,7 @@ u_int32_t convertDPToBinary(char **instruction)
         // add, eor, sub, rsb, add, orr
         u_int32_t Rn = (getInt(instruction[2])) << 16;
         u_int32_t immBit = 0;
-        u_int32_t operand2 = processOperand2(instruction[3]);
+        u_int32_t operand2 = processOperand2(&instruction[3]);
         if (instruction[3][0] == '#')
         {
             immBit = 1 << 25;
@@ -635,7 +680,7 @@ u_int32_t convertDPToBinary(char **instruction)
     {
         //mov
         u_int32_t immBit = 0;
-        u_int32_t operand2 = processOperand2(instruction[2]);
+        u_int32_t operand2 = processOperand2(&instruction[2]);
         if (instruction[2][0] == '#')
         {
             immBit = 1 << 25;
@@ -647,7 +692,7 @@ u_int32_t convertDPToBinary(char **instruction)
         //tst, teq, cmp
         setCond = 1 << 20;
         u_int32_t immBit = 0;
-        u_int32_t operand2 = processOperand2(instruction[2]);
+        u_int32_t operand2 = processOperand2(&instruction[2]);
         Rd <<= 4;
 
         if (instruction[2][0] == '#')
@@ -659,11 +704,12 @@ u_int32_t convertDPToBinary(char **instruction)
     return EXIT_FAILURE;
 }
 
-
-void replaceEqualsWithHashtag(char* str1, char* str2){
+void replaceEqualsWithHashtag(char *str1, char *str2)
+{
     str1[0] = '#';
 
-    for(int i=1; i<strlen(str2); i++){
+    for (int i = 1; i < strlen(str2); i++)
+    {
         str1[i] = str2[i];
     }
 }
@@ -671,31 +717,34 @@ void replaceEqualsWithHashtag(char* str1, char* str2){
 // datastructure
 // takes instruction where it made
 // the value it stores
-int getSize(int *values){
-  int i=0;
-  while(*(values+i) >= 0){
-    i++;
-  }
-  return i;
+int getSize(int *values)
+{
+    int i = 0;
+    while (*(values + i) >= 0)
+    {
+        i++;
+    }
+    return i;
 }
 
-void updateInts(int *values, int value){
-  values = realloc(values, (getSize(values) + 2)* sizeof(int));
-  int i=0;
-  while(values[i] >= 0){
-    i++;
-  }
-  *(values+i) = value;
-  *(values+i+1) = -25;
+void updateInts(int *values, int value)
+{
+    values = realloc(values, (getSize(values) + 2) * sizeof(int));
+    int i = 0;
+    while (values[i] >= 0)
+    {
+        i++;
+    }
+    *(values + i) = value;
+    *(values + i + 1) = -25;
 }
-
 
 u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions, int *finalNumbers)
 {
     u_int32_t fillerBits = 0x04000000;
     char *loadStore = instructions[0];
     // strcpy(loadStore, instructions[0]);
-  
+
     u_int32_t Rd = getInt(instructions[1]) << 12;
     int addressCount = operandTotal(instructions) - 2;
     u_int32_t loadFlag = 0;
@@ -723,36 +772,34 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
                 u_int32_t returnValue = convertDPToBinary(movInstruction);
                 return returnValue;
             }
-            else {
-	      // place numeric expression at end of assembler file
+            else
+            {
+                // place numeric expression at end of assembler file
                 // calculate offset between the current instruction and the newly generated on
                 // recurse on "ldr, (instruction[1]), [PC, offset]"
-	      
-               
-		// calculates offset correctly <-- do not change 
-	        int offset = *total_instructions - current_instruction - 8;
-		*total_instructions = *total_instructions + 4 ;
-		updateInts(finalNumbers, numericExpression);
 
-		// working
+                // calculates offset correctly <-- do not change
+                int offset = *total_instructions - current_instruction - 8;
+                *total_instructions = *total_instructions + 4;
+                updateInts(finalNumbers, numericExpression);
 
-		char **ldrInstruction = (char **) calloc(5, sizeof(char *));
-		createStringArray(ldrInstruction, 5, 10);
-		ldrInstruction[0] = "ldr";
-		strcpy(ldrInstruction[1], instructions[1]);
-		
-		
-		ldrInstruction[2] = "[r15";
-		
-		// offset calculated in hex
-		char str[10];
-		sprintf(str, "=0x%04x]", offset);
-		ldrInstruction[3] = str;
-		ldrInstruction[4] = "end";
-		// check if new value is being added to a list of 
-		
-		
-		u_int32_t return_value = convertSDTToBinary(ldrInstruction, current_instruction, total_instructions, finalNumbers);
+                // working
+
+                char **ldrInstruction = (char **)calloc(5, sizeof(char *));
+                createStringArray(ldrInstruction, 5, 10);
+                ldrInstruction[0] = "ldr";
+                strcpy(ldrInstruction[1], instructions[1]);
+
+                ldrInstruction[2] = "[r15";
+
+                // offset calculated in hex
+                char str[10];
+                sprintf(str, "=0x%04x]", offset);
+                ldrInstruction[3] = str;
+                ldrInstruction[4] = "end";
+                // check if new value is being added to a list of
+
+                u_int32_t return_value = convertSDTToBinary(ldrInstruction, current_instruction, total_instructions, finalNumbers);
                 return return_value;
             }
         }
@@ -761,7 +808,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             // the value stored in teh registers is [rX]
             // Rn = get int of the value held at instruction[3] set offset to 0
             u_int32_t Rn = getInt(instructions[2]) << 16;
-            u_int32_t pFlag = 1<< 24;
+            u_int32_t pFlag = 1 << 24;
             u_int32_t uBit = 1 << 23;
             u_int32_t return_value = TRUECOND + pFlag + uBit + fillerBits + loadFlag + Rn + Rd;
             return return_value;
@@ -771,7 +818,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
     {
         // check if post or pre indexing
         int pFlag = 0;
-        u_int uBit = 1 <<23;
+        u_int uBit = 1 << 23;
         if (strchr(instructions[2], ']') != NULL)
         {
             pFlag = 0;
@@ -781,12 +828,13 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             pFlag = 1 << 24;
         }
 
-	// check if I flag needs to be set:
-	int iFlag = 0;
-	
-	if (instructions[3][0]=='r'){
-	  iFlag = 1 <<25;
-	}
+        // check if I flag needs to be set:
+        int iFlag = 0;
+
+        if (instructions[3][0] == 'r')
+        {
+            iFlag = 1 << 25;
+        }
 
         u_int32_t Rn = 0;
         u_int32_t offset = 0;
@@ -804,9 +852,11 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             offset = getInt(&(instructions[3])[1]);
         }
         return TRUECOND + fillerBits + iFlag + pFlag + uBit + loadFlag + Rd + Rn + offset;
-    } else {
-      // ignore instruction[3] since it's a minus instruction
-      int pFlag = 0;
+    }
+    else
+    {
+        // ignore instruction[3] since it's a minus instruction
+        int pFlag = 0;
         if (strchr(instructions[2], ']') != NULL)
         {
             pFlag = 0;
@@ -816,12 +866,13 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             pFlag = 1 << 24;
         }
 
-	// check if I flag needs to be set:
-	int iFlag = 0;
-	
-	if (instructions[4][0]=='r'){
-	  iFlag = 1 <<25;
-	}
+        // check if I flag needs to be set:
+        int iFlag = 0;
+
+        if (instructions[4][0] == 'r')
+        {
+            iFlag = 1 << 25;
+        }
 
         u_int32_t Rn = 0;
         u_int32_t offset = 0;
@@ -838,7 +889,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             Rn = getInt(instructions[2]) << 16;
             offset = getInt(instructions[4]);
         }
-        return TRUECOND + fillerBits + iFlag + pFlag  + loadFlag + Rd + Rn + offset;
+        return TRUECOND + fillerBits + iFlag + pFlag + loadFlag + Rd + Rn + offset;
     }
     return EXIT_FAILURE;
 }
@@ -977,11 +1028,11 @@ void assembler(char **instructions, char *filename, int total_number_instruction
 
     // SDT Variables
     total_number_instructions *= 4;
-    int *no_instructions = malloc(1*sizeof(int));
+    int *no_instructions = malloc(1 * sizeof(int));
     *no_instructions = total_number_instructions;
-    int *finalNumbers =  malloc(1*sizeof(int));
+    int *finalNumbers = malloc(1 * sizeof(int));
     *finalNumbers = (-25);
-    
+
     int i = 0;
     SymbTable table;
     firstPass(&table, instructions);
@@ -992,41 +1043,41 @@ void assembler(char **instructions, char *filename, int total_number_instruction
         MNEMONICS type = getMnemonic(commands);
         switch (type)
         {
-            case ADD:
-            case SUB:
-            case RSB:
-            case AND:
-            case EOR:
-            case ORR:
-            case TEQ:
-            case MOV:
-            case TST:
-            case CMP:;
-                binInstruction = convertDPToBinary(commands);
-                break;
-            case MUL:
-            case MLA:;
-                binInstruction = convertMultiplyToBinary(commands);
-                break;
-            case LDR:
-            case STR:;
-	      binInstruction = convertSDTToBinary(commands, i*4, no_instructions, finalNumbers);
-                break;
-            case BEQ:
-            case BNE:
-            case BGE:
-            case BLT:
-            case BGT:
-            case BLE:
-            case B:;
-                binInstruction = convertBranchToBinary(commands, table, i * 4);
-                break;
-            case LABEL:
-                i++;
-                continue;
-            case ANDEQ:
-                binInstruction = 0;
-                break;
+        case ADD:
+        case SUB:
+        case RSB:
+        case AND:
+        case EOR:
+        case ORR:
+        case TEQ:
+        case MOV:
+        case TST:
+        case CMP:;
+            binInstruction = convertDPToBinary(commands);
+            break;
+        case MUL:
+        case MLA:;
+            binInstruction = convertMultiplyToBinary(commands);
+            break;
+        case LDR:
+        case STR:;
+            binInstruction = convertSDTToBinary(commands, i * 4, no_instructions, finalNumbers);
+            break;
+        case BEQ:
+        case BNE:
+        case BGE:
+        case BLT:
+        case BGT:
+        case BLE:
+        case B:;
+            binInstruction = convertBranchToBinary(commands, table, i * 4);
+            break;
+        case LABEL:
+            i++;
+            continue;
+        case ANDEQ:
+            binInstruction = 0;
+            break;
         }
 
         binInstruction = littleEndianConv(binInstruction);
@@ -1034,12 +1085,13 @@ void assembler(char **instructions, char *filename, int total_number_instruction
         i++;
     }
 
-    i=0;
-    while(finalNumbers[i] >= 0){
-      // write the binarry equivalent of the binary value
-      binInstruction =littleEndianConv( *(finalNumbers + i));
-      writeToFile(fileToWriteTo, binInstruction);
-      i++;
+    i = 0;
+    while (finalNumbers[i] >= 0)
+    {
+        // write the binarry equivalent of the binary value
+        binInstruction = littleEndianConv(*(finalNumbers + i));
+        writeToFile(fileToWriteTo, binInstruction);
+        i++;
     }
 
     // take each number and add to end of while
