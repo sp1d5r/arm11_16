@@ -673,26 +673,29 @@ void replaceEqualsWithHashtag(char* str1, char* str2){
 // the value it stores
 int getSize(int *values){
   int i=0;
-  while(*values){
+  while(*(values+i) >= 0){
     i++;
-    values++;
   }
   return i;
 }
 
 void updateInts(int *values, int value){
-  values = realloc(values, getSize(values)* sizeof(int));
-  while(*values){
-    values++;
+  values = realloc(values, (getSize(values) + 2)* sizeof(int));
+  int i=0;
+  while(values[i] >= 0){
+    i++;
   }
-  *values = value;
+  *(values+i) = value;
+  *(values+i+1) = -25;
 }
 
-u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions)
+
+u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions, int *finalNumbers)
 {
-    char *loadStore = instructions[0];
-    strcpy(loadStore, instructions[0]);
     u_int32_t fillerBits = 0x04000000;
+    char *loadStore = instructions[0];
+    // strcpy(loadStore, instructions[0]);
+  
     u_int32_t Rd = getInt(instructions[1]) << 12;
     int addressCount = operandTotal(instructions) - 2;
     u_int32_t loadFlag = 0;
@@ -720,35 +723,36 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
                 u_int32_t returnValue = convertDPToBinary(movInstruction);
                 return returnValue;
             }
-            else
-            {
-                // place numeric expression at end of assembler file
+            else {
+	      // place numeric expression at end of assembler file
                 // calculate offset between the current instruction and the newly generated on
                 // recurse on "ldr, (instruction[1]), [PC, offset]"
 	      
                
 		// calculates offset correctly <-- do not change 
-		int offset = *total_instructions - current_instruction - 8;
+	        int offset = *total_instructions - current_instruction - 8;
 		*total_instructions = *total_instructions + 4 ;
+		updateInts(finalNumbers, numericExpression);
 
 		// working
 
-		char **ldrInstruction = (char **) calloc(4, sizeof(char *));
-		createStringArray(ldrInstruction, 4, 10);
+		char **ldrInstruction = (char **) calloc(5, sizeof(char *));
+		createStringArray(ldrInstruction, 5, 10);
 		ldrInstruction[0] = "ldr";
 		strcpy(ldrInstruction[1], instructions[1]);
 		
-		ldrInstruction[2] = "[r16";
-
+		
+		ldrInstruction[2] = "[r15";
+		
 		// offset calculated in hex
 		char str[10];
 		sprintf(str, "=0x%04x]", offset);
 		ldrInstruction[3] = str;
-
+		ldrInstruction[4] = "end";
 		// check if new value is being added to a list of 
 		
 		
-		u_int32_t return_value = 0;
+		u_int32_t return_value = convertSDTToBinary(ldrInstruction, current_instruction, total_instructions, finalNumbers);
                 return return_value;
             }
         }
@@ -930,10 +934,14 @@ void writeToFile(FILE *file, u_int32_t instruction)
 void assembler(char **instructions, char *filename, int total_number_instructions)
 {
     FILE *fileToWriteTo = fopen(filename, "w");
+
+    // SDT Variables
     total_number_instructions *= 4;
     int *no_instructions = malloc(1*sizeof(int));
     *no_instructions = total_number_instructions;
-    // int *finalNumbers = calloc(1,sizeof(int));
+    int *finalNumbers =  malloc(1*sizeof(int));
+    *finalNumbers = (-25);
+    
     int i = 0;
     SymbTable table;
     firstPass(&table, instructions);
@@ -962,7 +970,7 @@ void assembler(char **instructions, char *filename, int total_number_instruction
                 break;
             case LDR:
             case STR:;
-	      binInstruction = convertSDTToBinary(commands, i*4, no_instructions);
+	      binInstruction = convertSDTToBinary(commands, i*4, no_instructions, finalNumbers);
                 break;
             case BEQ:
             case BNE:
@@ -984,6 +992,14 @@ void assembler(char **instructions, char *filename, int total_number_instruction
         binInstruction = littleEndianConv(binInstruction);
         writeToFile(fileToWriteTo, binInstruction);
         i++;
+    }
+
+    i=0;
+    while(finalNumbers[i] >= 0){
+      // write the binarry equivalent of the binary value
+      binInstruction =littleEndianConv( *(finalNumbers + i));
+      writeToFile(fileToWriteTo, binInstruction);
+      i++;
     }
 
     // take each number and add to end of while
