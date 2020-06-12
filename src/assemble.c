@@ -468,24 +468,30 @@ u_int32_t convertBranchToBinary(char **instructions, SymbTable table, int addres
         perror("\nIssue setting branch code\n");
         exit(EXIT_FAILURE);
     }
+
     int labelAddress = returnAddressFromSymbolTable(instructions[1], table);
-    int corrcOffset;
-    if (labelAddress == -1) {
-        corrcOffset = getInt(instructions[1]) - address - 8;
-    } else {
-        corrcOffset = labelAddress - address - 8;
-	int signBit = 0;
-	if (corrcOffset < 0){
-	  signBit += table.numberOfItems;
-	}
-        corrcOffset &= 0x3FFFFFF;
-        corrcOffset >>= 2;
-        corrcOffset &= 0xFFFFFF;
-        corrcOffset += signBit;
+    int offset;
+    if (labelAddress == -1)
+    {
+        offset = getInt(instructions[1]) - address - 8;
+    }
+    else
+    {
+        offset = labelAddress - address - 8;
+
+        int labelNum = 0;
+        if (offset < 0)
+        {
+            labelNum += table.numberOfItems;
+        }
+        offset &= 0x3FFFFFF;
+        offset >>= 2;
+        offset &= 0xFFFFFF;
+        offset += labelNum;
     }
     u_int32_t fillerBits = 0x0a000000;
     code = code << 28;
-    return code + fillerBits + (u_int32_t) corrcOffset;
+    return code + fillerBits + (u_int32_t)offset;
 }
 
 /*
@@ -752,7 +758,7 @@ void updateInts(int *values, int value)
     *(values + i + 1) = -25;
 }
 
-u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions, int *finalNumbers)
+u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions, int *finalNumbers, int noOfLabels)
 {
     u_int32_t fillerBits = 0x04000000;
     char *loadStore = instructions[0];
@@ -792,7 +798,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
                 // recurse on "ldr, (instruction[1]), [PC, offset]"
 
                 // calculates offset correctly <-- do not change
-                int offset = *total_instructions - current_instruction - 8;
+                int offset = *total_instructions - current_instruction - 8 - noOfLabels;
                 *total_instructions = *total_instructions + 4;
                 updateInts(finalNumbers, numericExpression);
 
@@ -812,7 +818,7 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
                 ldrInstruction[4] = "end";
                 // check if new value is being added to a list of
 
-                u_int32_t return_value = convertSDTToBinary(ldrInstruction, current_instruction, total_instructions, finalNumbers);
+                u_int32_t return_value = convertSDTToBinary(ldrInstruction, current_instruction, total_instructions, finalNumbers, noOfLabels);
                 return return_value;
             }
         }
@@ -903,32 +909,33 @@ u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *
             offset = getInt(instructions[4]);
         }
         return TRUECOND + fillerBits + iFlag + pFlag + loadFlag + Rd + Rn + offset;
-    } else {
-     
-      int pFlag = 0;
-      u_int uBit = 1 << 23;
-      if (strchr(instructions[2], ']') != NULL)
+    }
+    else
+    {
+
+        int pFlag = 0;
+        u_int uBit = 1 << 23;
+        if (strchr(instructions[2], ']') != NULL)
         {
-	  pFlag = 0;
+            pFlag = 0;
         }
-      else
+        else
         {
-	  pFlag = 1 << 24;
+            pFlag = 1 << 24;
         }
 
-      // check if I flag needs to be set:
-      int iFlag = 0;
-      iFlag = 1 << 25;
+        // check if I flag needs to be set:
+        int iFlag = 0;
+        iFlag = 1 << 25;
 
-      u_int32_t Rn = 0;
-      Rn = getInt(instructions[2]) << 16;
-      u_int32_t offset = processOperand2(&(instructions)[3]);
-      
-      return TRUECOND + fillerBits + uBit + iFlag +  pFlag + loadFlag + Rd + Rn + offset;
+        u_int32_t Rn = 0;
+        Rn = getInt(instructions[2]) << 16;
+        u_int32_t offset = processOperand2(&(instructions)[3]);
+
+        return TRUECOND + fillerBits + uBit + iFlag + pFlag + loadFlag + Rd + Rn + offset;
     }
     return EXIT_FAILURE;
 }
-
 
 u_int32_t convertLSLToBinary(char **instruction)
 {
@@ -1089,11 +1096,17 @@ void assembler(char **instructions, char *filename, int total_number_instruction
     *finalNumbers = (-25);
 
     int i = 0;
+    int currentInstr = 0;
     SymbTable table;
     firstPass(&table, instructions);
     u_int32_t binInstruction;
     while (strcmp(instructions[i], "FIN"))
     {
+        if (strcmp(" end", instructions[i]) == 0)
+        {
+            i++;
+        }
+        else {
         char **commands = splitUp(instructions[i]);
         MNEMONICS type = getMnemonic(commands);
         switch (type)
@@ -1116,7 +1129,7 @@ void assembler(char **instructions, char *filename, int total_number_instruction
             break;
         case LDR:
         case STR:;
-            binInstruction = convertSDTToBinary(commands, i * 4, no_instructions, finalNumbers);
+            binInstruction = convertSDTToBinary(commands, currentInstr * 4, no_instructions, finalNumbers, 4*(table.numberOfItems));
             break;
         case BEQ:
         case BNE:
@@ -1141,6 +1154,8 @@ void assembler(char **instructions, char *filename, int total_number_instruction
         binInstruction = littleEndianConv(binInstruction);
         writeToFile(fileToWriteTo, binInstruction);
         i++;
+        currentInstr++;
+        }
     }
 
     i = 0;
@@ -1179,7 +1194,17 @@ int main(int argc, char **argv)
     // Preprocessing for the passes
     // separete out each lines into array of chars for the passes
 
+    int total_instructions = 0;
+
+    for (int i = 0; i < fileLength(arm_filename); i++)
+    {
+        if (operandTotal(splitUp(instructionArray[i])) != 0)
+        {
+            total_instructions++;
+        }
+    }
+
     // Pass 1 - Symbol Address pairing
-    assembler(instructionArray, argv[2], fileLength(arm_filename));
+    assembler(instructionArray, argv[2], total_instructions);
     return EXIT_SUCCESS;
 }
