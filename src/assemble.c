@@ -465,14 +465,24 @@ u_int32_t convertBranchToBinary(char **instructions, SymbTable table, int addres
     }
     else
     {
-        code = -1;
-        printf("\nIssue setting branch code\n");
+        perror("\nIssue setting branch code\n");
+        exit(EXIT_FAILURE);
     }
     int labelAddress = returnAddressFromSymbolTable(instructions[1], table);
-    u_int32_t offset = (labelAddress == -1) ? getInt(instructions[1]) - address - 8 : labelAddress - address - 8;
+    int corrcOffset;
+    if (labelAddress == -1) {
+        corrcOffset = getInt(instructions[1]) - address - 8;
+    } else {
+        corrcOffset = labelAddress - address - 8;
+        int signBit = table.numberOfItems;
+        corrcOffset &= 0x3FFFFFF;
+        corrcOffset >>= 2;
+        corrcOffset &= 0xFFFFFF;
+        corrcOffset += signBit;
+    }
     u_int32_t fillerBits = 0x0a000000;
     code = code << 28;
-    return code + fillerBits + offset;
+    return code + fillerBits + (u_int32_t) corrcOffset;
 }
 
 /*
