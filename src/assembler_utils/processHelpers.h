@@ -3,7 +3,6 @@
 
 #include "assemble.h"
 
-
 void createStringArray(char **array, int length, int maxSize);
 int operandTotal(char **array);
 int getInt(char *values);
@@ -13,5 +12,4 @@ u_int32_t getShiftAmount(char **shiftOperand);
 u_int32_t processOffset(int offset);
 u_int32_t processOperand2(char **operand2);
 
-
-#endif
+#endif // helper

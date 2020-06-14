@@ -4,8 +4,7 @@
  * executed.
 */
 
-
-#include "defines.h"
+#include "emulateConstants.h"
 
 /*
  * SUMMARY: Gets the value stored in memory from the given address.
@@ -18,8 +17,7 @@
 
 uint32_t getMem(ARMSTATE *state, int addr)
 {
-	return (state->memory[addr] << 24) | (state->memory[addr + 1] << 16)
-		| (state->memory[addr + 2] << 8) | state->memory[addr + 3];
+  return (state->memory[addr] << 24) | (state->memory[addr + 1] << 16) | (state->memory[addr + 2] << 8) | state->memory[addr + 3];
 }
 
 /*
@@ -32,13 +30,13 @@ uint32_t getMem(ARMSTATE *state, int addr)
 
 void outputNonZeroMem(ARMSTATE *state)
 {
-	printf("Non-zero memory:\n");
-	for (int i = 0; i < MAX_BYTES; i += NUMBER_OF_BYTES_IN_INSTR)
-	{
-		uint32_t instr = getMem(state, i);
-		if (instr)
-			printf("0x%08x: 0x%08x\n", i, instr);
-	}
+  printf("Non-zero memory:\n");
+  for (int i = 0; i < MAX_BYTES; i += NUMBER_OF_BYTES_IN_INSTR)
+  {
+    uint32_t instr = getMem(state, i);
+    if (instr)
+      printf("0x%08x: 0x%08x\n", i, instr);
+  }
 }
 
 /*
@@ -51,16 +49,16 @@ void outputNonZeroMem(ARMSTATE *state)
 
 void outputState(ARMSTATE *state)
 {
-	uint32_t regState, i;
-	printf("Registers:\n");
-	for (i = 0; i < NUMBER_OF_REGISTERS - 4; ++i)
-	{
-		regState = state->regs[i];
-		printf("$%-3d: %10d (0x%08x)\n", i, regState, regState);
-	}
-	regState = state->regs[PROGRAM_COUNTER_LOCATION];
-	printf("PC  : %10d (0x%08x)\n", regState, regState);
-	regState = state->regs[CPSR_LOCATION];
-	printf("CPSR: %10d (0x%08x)\n", regState, regState);
-	outputNonZeroMem(state);
+  uint32_t regState, i;
+  printf("Registers:\n");
+  for (i = 0; i < NUMBER_OF_REGISTERS - 4; ++i)
+  {
+    regState = state->regs[i];
+    printf("$%-3d: %10d (0x%08x)\n", i, regState, regState);
+  }
+  regState = state->regs[PROGRAM_COUNTER_LOCATION];
+  printf("PC  : %10d (0x%08x)\n", regState, regState);
+  regState = state->regs[CPSR_LOCATION];
+  printf("CPSR: %10d (0x%08x)\n", regState, regState);
+  outputNonZeroMem(state);
 }

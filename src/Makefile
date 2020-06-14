@@ -16,33 +16,26 @@ emulate: emulate.o emulator_utils/pipeline.o emulator_utils/output.o emulator_ut
 assemble.o: assemble.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
 
-emulate.o: emulate.c emulator_utils/defines.h
+emulate.o: emulate.c emulator_utils/emulateConstants.h
 		$(CC) $(CFLAGS) $< -c
 
-pipeline.o: emulator_utils/pipeline.c emulator_utils/defines.h
+pipeline.o: emulator_utils/pipeline.c emulator_utils/emulateConstants.h emulator_utils/pipelineConstants.h
 		$(CC) $(CFLAGS) $< -c
 
-shiftInstructions.o : emulator_utils/shiftInstructions.c emulator_utils/defines.h
+shiftInstructions.o : emulator_utils/shiftInstructions.c emulator_utils/emulateConstants.h emulator_utils/shiftingConstants.h
 		$(CC) $(CFLAGS) $< -c
 
-executeInstr.o : emulator_utils/executeInstr.c emulator_utils/defines.h
+executeInstr.o : emulator_utils/executeInstr.c emulator_utils/emulateConstants.h emulator_utils/executeConstants.h
 		$(CC) $(CFLAGS) $< -c
 
-branchAndMultiply.o: emulator_utils/branchAndMultiply.c emulator_utils/defines.h
+output.o : emulator_utils/output.c emulator_utils/emulateConstants.h emulator_utils/outputConstants.h
 		$(CC) $(CFLAGS) $< -c
 
-output.o : emulator_utils/output.c emulator_utils/defines.h
+decodeInstr.o : emulator_utils/decodeInstr.c emulator_utils/emulateConstants.h emulator_utils/decodeConstants.h
 		$(CC) $(CFLAGS) $< -c
 
-dataTransfer.o : emulator_utils/dataTransfer.c emulator_utils/defines.h
-		$(CC) $(CFLAGS) $< -c
-
-dataProcess.o : emulator_utils/dataProcess.c emulator_utils/defines.h
-		$(CC) $(CFLAGS) $< -c
-
-decodeInstr.o : emulator_utils/decodeInstr.c emulator_utils/defines.h
-		$(CC) $(CFLAGS) $< -c
-
+executeHelper.o : emulator_utils/executeInstr.c emulator_utils/emulateConstants.h emulator_utils/executeConstants.h
+		$(CC) $(CFLAGS) $< -c		
 
 mnemonicHelper.o : assembler_utils/mnemonicHelper.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
@@ -64,9 +57,6 @@ processMul.o : assembler_utils/processMul.c assembler_utils/assemble.h
 
 processSDT.o : assembler_utils/processSDT.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
-
-
-
 
 clean:
 	rm -f $(wildcard *.o)

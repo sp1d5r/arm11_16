@@ -3,7 +3,8 @@
  * This file contains the function responsible for executing a decoded instruction.
 */
 
-#include "defines.h"
+#include "executeConstants.h"
+#include "emulateConstants.h"
 
 /*
  * SUMMARY: Emulator executor used to execute instructions.
@@ -17,24 +18,24 @@
 
 void execute(DECODE *executableInstr, ARMSTATE *state)
 {
-	if (conditionChecker(executableInstr->bigEndianInstr, state))
-	{
-		switch (executableInstr->instruction)
-		{
-		case MULTIPLY:
-			multiply(executableInstr, state);
-			break;
-		case BRANCH:
-			branch(executableInstr, state);
-			break;
-		case PROCESS:
-			process(executableInstr, state);
-			break;
-		case TRANSFER:
-			transfer(executableInstr, state);
-			break;
-		case NONE:
-			printf("INVALID INSTRUCTION ENTERED!");
-		}
-	}
+  if (conditionChecker(executableInstr->bigEndianInstr, state))
+  {
+    switch (executableInstr->instruction)
+    {
+    case MULTIPLY:
+      multiply(executableInstr, state);
+      break;
+    case BRANCH:
+      branch(executableInstr, state);
+      break;
+    case PROCESS:
+      process(executableInstr, state);
+      break;
+    case TRANSFER:
+      transfer(executableInstr, state);
+      break;
+    case NONE:
+      printf("INVALID INSTRUCTION ENTERED!");
+    }
+  }
 }

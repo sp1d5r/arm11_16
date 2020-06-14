@@ -1,10 +1,14 @@
 /*
  * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
- * The main file where reading from a bin file is done and instructions are given to the
+ * The main file where reading from a binary file is done and instructions are given to the
  * pipeline to process.
 */
 
-#include "emulator_utils/defines.h"
+#include "emulator_utils/emulateConstants.h"
+
+void initialiseState(ARMSTATE *);
+bool isFileNull(FILE *);
+int readFromBinFile(ARMSTATE *, FILE *);
 
 /*
  * SUMMARY: Initialises all registers and memory addresses to zero.
@@ -17,10 +21,10 @@
 
 void initialiseState(ARMSTATE *state)
 {
-	for (int i = 0; i < NUMBER_OF_REGISTERS; ++i)
-		state->regs[i] = INIT_ZERO_VAL;
-	state->memory = (uint8_t *)calloc(MAX_BYTES, sizeof(uint8_t));
-	state->fetchDecodeExecute[0] = state->fetchDecodeExecute[1] = false;
+  for (int i = 0; i < NUMBER_OF_REGISTERS; ++i)
+    state->regs[i] = INIT_ZERO_VAL;
+  state->memory = (uint8_t *)calloc(MAX_BYTES, sizeof(uint8_t));
+  state->fetchDecodeExecute[0] = state->fetchDecodeExecute[1] = false;
 }
 
 /*
@@ -33,12 +37,12 @@ void initialiseState(ARMSTATE *state)
 
 bool isFileNull(FILE *binaryFile)
 {
-	if (binaryFile == NULL)
-	{
-		printf("Please use a valid file.\n");
-		return EXIT_FAILURE;
-	}
-	return 0;
+  if (binaryFile == NULL)
+  {
+    printf("Please use a valid file.\n");
+    return EXIT_FAILURE;
+  }
+  return 0;
 }
 
 /*
@@ -53,13 +57,14 @@ bool isFileNull(FILE *binaryFile)
 int readFromBinFile(ARMSTATE *state, FILE *binaryFile)
 {
 
-	int arrayIndex = -1;
-	if (state->memory == NULL)
-		return ALLOCATION_ERROR;
-	while ((fread(&state->memory[++arrayIndex], sizeof(uint8_t), 1, binaryFile) == 1))
-	{}
-	fclose(binaryFile);
-	return arrayIndex;
+  int arrayIndex = -1;
+  if (state->memory == NULL)
+    return ALLOCATION_ERROR;
+  while ((fread(&state->memory[++arrayIndex], sizeof(uint8_t), 1, binaryFile) == 1))
+  {
+  }
+  fclose(binaryFile);
+  return arrayIndex;
 }
 
 /*
@@ -69,20 +74,21 @@ int readFromBinFile(ARMSTATE *state, FILE *binaryFile)
 
 int main(int argc, char **argv)
 {
-	if (argc != NUMBER_OF_ARGUMENTS)
-		return EXIT_FAILURE;
-	ARMSTATE state;
-	FILE *binaryFile;
-	binaryFile = fopen(argv[ARG_WITH_FILE], "rb");
-	if (isFileNull(binaryFile))
-		return EXIT_FAILURE;
-	initialiseState(&state);
-	int noOfBytesInFile = readFromBinFile(&state, binaryFile);
-	if (noOfBytesInFile == ALLOCATION_ERROR) {
-	        free(state.memory);
-		return EXIT_FAILURE;
-	}
-	pipeline(&state);
-	free(state.memory);
-	return EXIT_SUCCESS;
+  if (argc != NUMBER_OF_ARGUMENTS)
+    return EXIT_FAILURE;
+  ARMSTATE state;
+  FILE *binaryFile;
+  binaryFile = fopen(argv[ARG_WITH_FILE], "rb");
+  if (isFileNull(binaryFile))
+    return EXIT_FAILURE;
+  initialiseState(&state);
+  int noOfBytesInFile = readFromBinFile(&state, binaryFile);
+  if (noOfBytesInFile == ALLOCATION_ERROR)
+  {
+    free(state.memory);
+    return EXIT_FAILURE;
+  }
+  pipeline(&state);
+  free(state.memory);
+  return EXIT_SUCCESS;
 }

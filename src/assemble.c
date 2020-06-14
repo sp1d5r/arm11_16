@@ -135,7 +135,6 @@ char **splitUp(char *string)
  * firstPass
  * Params - symbtable, and array of strings (instructions)
  * Returns - nothing
- * FINISHED LETS GOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
  */
 void firstPass(SymbTable *table, char **instructions)
 {
@@ -320,7 +319,7 @@ int main(int argc, char **argv)
   if (argc != 3)
   {
     printf("ERROR with arguments: \n");
-    printf("argument 1 - Arm Source File, \n Argument 2 - Binary File Name \n");
+    printf("Argument 1 - Arm Source File, \n Argument 2 - Binary File Name \n");
     return EXIT_FAILURE;
   }
 
@@ -339,7 +338,6 @@ int main(int argc, char **argv)
     }
   }
 
-  // Pass 1 - Symbol Address pairing
   assembler(instructionArray, argv[2], total_instructions);
   return EXIT_SUCCESS;
 }

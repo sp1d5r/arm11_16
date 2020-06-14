@@ -1,6 +1,6 @@
 /*
  * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
- * This file contains all the utilities required by the emulator.
+ * This file contains all the constants required by the main emulator program.
 */
 
 #ifndef ARM11_16_SRC_DEFINES_H_
@@ -20,78 +20,48 @@
 #define CPSR_LOCATION 16
 #define ALLOCATION_ERROR -1
 #define NUMBER_OF_ARGUMENTS 2
-#define BRANCH_INSTR_MASK 0x08000000
-#define MULTIPLY_INSTR_MASK_1 0x000000F0
-#define MULTIPLY_INSTR_MASK_2 0x0FC00000
-#define TRANSFER_INSTR_MASK 0x04000000
-#define DATA_RN_MASK 0x000F0000
-#define DATA_RD_MASK 0x0000F000
-#define IMMEDIATE_MASK 0x02000000
-#define S_OR_L_MASK 0x00100000
-#define U_MASK 0x00800000
-#define P_MASK 0x01000000
-#define MULTIPLY_RN_MASK 0x0000F000
-#define MULTIPLY_RS_MASK 0x00000F00
-#define MULTIPLY_RD_MASK 0x000F0000
-#define MULTIPLY_RM_MASK 0x0000000F
-#define ACCUMULATE_MASK 0x00200000
-#define BITS_IN_NIBBLE 4
-#define BITS_IN_BYTE 8
-#define BITS_IN_TWO_BYTES 16
-#define BITS_IN_THREE_BYTES 24
-#define NUMBER_OF_BYTES_IN_INSTR 4
-#define INIT_ZERO_VAL 0
-#define OFFSET_MASK 0x00FFFFFF
-#define OFFSET_SHIFT 2
-#define SIGN_BIT_MASK 0x02000000
-#define SIGN_EXTEND_MASK 0xFC000000
-#define Z_AND_N_FLAG_MASK 0x3FFFFFFF
-#define TYPEMASK 0x0060
-#define CODE_MASK 0xF0000000
-#define Z_FLAG_MASK 0x40000000
-#define N_FLAG_MASK 0x80000000
-#define V_FLAG_MASK 0x10000000
 #define FETCHED 0
 #define DECODED 1
-#define OPCODE_MASK 0x0000000F
-#define OFFSET_MASK_2 0x00000FFF
-
-// enum for the instructions available:
-typedef enum INSTRUCTION
-{
-	MULTIPLY, BRANCH, PROCESS, TRANSFER, NONE
-} INSTRUCTION;
-
-// enum for possible opcodes in data process instructions:
-typedef enum OPCODE
-{
-	AND = 0, EOR = 1, SUB = 2, RSB = 3, ADD = 4, TST = 8, TEQ = 9, CMP = 10, ORR = 12, MOV = 13
-} OPCODE;
+#define INIT_ZERO_VAL 0
+#define NUMBER_OF_BYTES_IN_INSTR 4
+#define TYPEMASK 0x0060
 
 // enum for shift types:
 typedef enum SHIFTTYPE
 {
-	LOGICALLEFT, LOGICALRIGHT, ARITHMETICRIGHT, ROTATERIGHT
+  LOGICALLEFT,
+  LOGICALRIGHT,
+  ARITHMETICRIGHT,
+  ROTATERIGHT
 } SHIFTTYPE;
+
+// enum for the instructions available:
+typedef enum INSTRUCTION
+{
+  MULTIPLY,
+  BRANCH,
+  PROCESS,
+  TRANSFER,
+  NONE
+} INSTRUCTION;
 
 // Struct storing the current state of the machine:
 typedef struct ARMSTATE
 {
-	uint8_t *memory;
-	uint32_t regs[NUMBER_OF_REGISTERS];
-	bool fetchDecodeExecute[2]; // Assists the pipeline.
+  uint8_t *memory;
+  uint32_t regs[NUMBER_OF_REGISTERS];
+  bool fetchDecodeExecute[2]; // Assists the pipeline.
 } ARMSTATE;
 
 // Struct to store the value of the 4 bit instruction in big endian, the instruction type, the
 // registers which are required and the values of any other bits such as the Immediate operand:
 typedef struct DECODE
 {
-	uint32_t bigEndianInstr;
-	INSTRUCTION instruction;
-	uint8_t destReg: 4, rn: 4;
-	bool op1, op2;
+  uint32_t bigEndianInstr;
+  INSTRUCTION instruction;
+  uint8_t destReg : 4, rn : 4;
+  bool op1, op2;
 } DECODE;
-
 
 // Function Declarations:
 void initialiseState(ARMSTATE *);

@@ -1,0 +1,35 @@
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * This file contains all the constants required by the decode instruction.
+*/
+
+#ifndef DECODE_CONSTANTS_h_
+#define DECODE_CONSTANTS_h_
+
+#define BRANCH_INSTR_MASK 0x08000000
+#define MULTIPLY_INSTR_MASK_1 0x000000F0
+#define MULTIPLY_INSTR_MASK_2 0x0FC00000
+#define TRANSFER_INSTR_MASK 0x04000000
+
+#define BITS_IN_NIBBLE 4
+#define BITS_IN_BYTE 8
+#define BITS_IN_TWO_BYTES 16
+#define BITS_IN_THREE_BYTES 24
+
+#define S_OR_L_MASK 0x00100000
+#define MULTIPLY_RD_MASK 0x000F0000
+#define MULTIPLY_RN_MASK 0x0000F000
+#define ACCUMULATE_MASK 0x00200000
+#define Z_FLAG_MASK 0x40000000
+
+#define DATA_RN_MASK 0x000F0000
+#define DATA_RD_MASK 0x0000F000
+#define IMMEDIATE_MASK 0x02000000
+#define P_MASK 0x01000000
+
+#define N_FLAG_MASK 0x80000000
+#define V_FLAG_MASK 0x10000000
+
+#define CODE_MASK 0xF0000000
+
+#endif // DECODE_CONSTANTS_h_
