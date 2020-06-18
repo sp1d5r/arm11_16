@@ -16,58 +16,69 @@
 #define MAX_LINE_LENGTH 511
 #define EXTRA_CHARS 5
 
-typedef struct symbolTable {
-  char **labels;
-  int numberOfItems;
-  int *memoryAddresses;
+typedef struct symbolTable
+{
+	char **labels;
+	int numberOfItems;
+	int *memoryAddresses;
 } symbolTable;
 
-typedef struct sdtHelper {
-  int no_instructions;
-  int *finalNumbers;
-  int sizeOfFinalNumbers;
+typedef struct sdtHelper
+{
+	int no_instructions;
+	int *finalNumbers;
+	int sizeOfFinalNumbers;
 } sdtHelper;
 
-typedef enum Types {
-  DP = 0, SDT = 1, BRANCH = 2, MULTIPLY = 3, SPECIAL = 4
+typedef enum Types
+{
+	DP = 0, SDT = 1, BRANCH = 2, MULTIPLY = 3, SPECIAL = 4
 } Types;
 
-typedef enum Dp {
-  ADD = 4, SUB = 2, RSB = 3, AND = 0, EOR = 1, ORR = 12, MOV = 13, TST = 8, TEQ = 9, CMP = 10
+typedef enum Dp
+{
+	ADD = 4, SUB = 2, RSB = 3, AND = 0, EOR = 1, ORR = 12, MOV = 13, TST = 8, TEQ = 9, CMP = 10
 } Dp;
 
-typedef enum Multiply {
-  MUL, MLA,
+typedef enum Multiply
+{
+	MUL, MLA,
 } Multiply;
 
-typedef enum Dt {
-  LDR, STR
+typedef enum Dt
+{
+	LDR, STR
 } Dt;
 
-typedef enum Branch {
-  BEQ = 0, BNE = 1, BGE = 10, BLT = 11, BGT = 12, BLE = 13, B = 14
+typedef enum Branch
+{
+	BEQ = 0, BNE = 1, BGE = 10, BLT = 11, BGT = 12, BLE = 13, B = 14
 } Branch;
 
-typedef enum Special {
-  LSL, HALT
+typedef enum Special
+{
+	LSL, HALT
 } Special;
 
-typedef struct mnemonicMap {
-  int mnemonic;
-  char *str;
-  Types t;
+typedef struct mnemonicMap
+{
+	int mnemonic;
+	char *str;
+	Types t;
 } mnemonicMap;
 
-typedef struct instruction {
-  symbolTable symbolTable;
-  union {
-	Dp opCode;
-	Dt sdt;
-	Branch condCode;
-  } u;
-  char **lines;
-  int lineCount;
-  sdtHelper sdt_helper;
+typedef struct instruction
+{
+	symbolTable symbolTable;
+	union
+	{
+		Dp opCode;
+		Dt sdt;
+		Branch condCode;
+	} u;
+	char **lines;
+	int lineCount;
+	sdtHelper sdt_helper;
 } instruction;
 
 #define CHECK_IF_NULL(x) if (!x)                \
@@ -79,8 +90,8 @@ typedef struct instruction {
 void assembler(char **);
 void secondPass(instruction *state, char *filePath);
 void process(int currentLine, mnemonicMap m[], instruction *instr, FILE *outputFile);
-void writeToFile(FILE *outputFile, u_int32_t instruction);
-u_int32_t littleEndianConverter(u_int32_t instruction);
+void writeToFile(FILE *outputFile, uint32_t instruction);
+uint32_t littleEndianConverter(uint32_t instruction);
 void getInstrData(mnemonicMap map, instruction *instr);
 uint32_t convertBranchToBinary(instruction *instr, const int currentLine);
 uint32_t convertSpecialToBinary(instruction *state, const int currentLine);
@@ -88,7 +99,6 @@ uint32_t convertMultiplyToBinary(instruction *state, const int currentLine);
 uint32_t convertSdtToBinary(instruction *state, const int currentLine);
 int calculatePFlag(char *instruction);
 void updateInts(int *values, int value, int size);
-//int getSize(const int *values);
 uint32_t convertDpToBinary(instruction *state, const int currentLine);
 char **splitUp(char *instruction);
 char **firstPass(char *filePath, symbolTable *table, int *numberOfLines);

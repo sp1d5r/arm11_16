@@ -16,9 +16,9 @@
 
 uint32_t rotateRight(uint32_t operand, uint8_t rotateAmount)
 {
-  uint32_t shift = operand >> rotateAmount;
-  uint32_t cycle = operand << (32 - rotateAmount);
-  return shift | cycle;
+	uint32_t shift = operand >> rotateAmount;
+	uint32_t cycle = operand << (32 - rotateAmount);
+	return shift | cycle;
 }
 
 /*
@@ -31,18 +31,18 @@ uint32_t rotateRight(uint32_t operand, uint8_t rotateAmount)
 
 SHIFTTYPE shiftType(uint16_t operand)
 {
-  int typeOpCode = (operand & TYPEMASK) >> 5;
-  switch (typeOpCode)
-  {
-  case 1:
-    return LOGICALRIGHT;
-  case 2:
-    return ARITHMETICRIGHT;
-  case 3:
-    return ROTATERIGHT;
-  default:
-    return LOGICALLEFT;
-  }
+	int typeOpCode = (operand & TYPEMASK) >> 5;
+	switch (typeOpCode)
+	{
+	case 1:
+		return LOGICALRIGHT;
+	case 2:
+		return ARITHMETICRIGHT;
+	case 3:
+		return ROTATERIGHT;
+	default:
+		return LOGICALLEFT;
+	}
 }
 
 /*
@@ -57,35 +57,35 @@ SHIFTTYPE shiftType(uint16_t operand)
 
 bool shift(uint32_t *valueInRm, SHIFTTYPE type, uint8_t shiftAmount)
 {
-  bool carry;
-  switch (type)
-  {
-  case LOGICALLEFT:
-    carry = (*valueInRm >> (31 - shiftAmount)) & 0x1;
-    *valueInRm <<= shiftAmount;
-    break;
-  case LOGICALRIGHT:
-    carry = (*valueInRm >> (shiftAmount - 1)) & 0x1;
-    *valueInRm >>= shiftAmount;
-    break;
-  case ARITHMETICRIGHT:
-    carry = (*valueInRm >> (shiftAmount - 1)) & 0x1;
-    bool signBit = *valueInRm & 0x80000000;
-    for (int i = 0; i < shiftAmount; i++)
-    {
-      *valueInRm >>= 1;
-      if (signBit)
-        *valueInRm |= 0x80000000;
-    }
-    break;
-  case ROTATERIGHT:
-    carry = (*valueInRm >> (shiftAmount - 1)) & 0x1;
-    *valueInRm = rotateRight(*valueInRm, shiftAmount);
-    break;
-  default:
-    printf("Unknown instruction entered");
-  }
-  return carry;
+	bool carry;
+	switch (type)
+	{
+	case LOGICALLEFT:
+		carry = (*valueInRm >> (31 - shiftAmount)) & 0x1;
+		*valueInRm <<= shiftAmount;
+		break;
+	case LOGICALRIGHT:
+		carry = (*valueInRm >> (shiftAmount - 1)) & 0x1;
+		*valueInRm >>= shiftAmount;
+		break;
+	case ARITHMETICRIGHT:
+		carry = (*valueInRm >> (shiftAmount - 1)) & 0x1;
+		bool signBit = *valueInRm & 0x80000000;
+		for (int i = 0; i < shiftAmount; i++)
+		{
+			*valueInRm >>= 1;
+			if (signBit)
+				*valueInRm |= 0x80000000;
+		}
+		break;
+	case ROTATERIGHT:
+		carry = (*valueInRm >> (shiftAmount - 1)) & 0x1;
+		*valueInRm = rotateRight(*valueInRm, shiftAmount);
+		break;
+	default:
+		printf("Unknown instruction entered");
+	}
+	return carry;
 }
 
 /*
@@ -102,8 +102,8 @@ bool shift(uint32_t *valueInRm, SHIFTTYPE type, uint8_t shiftAmount)
 
 uint32_t shiftRegister(ARMSTATE *state, uint8_t amount, uint16_t operand, bool *shiftCarry)
 {
-  uint32_t valueInRm = state->regs[operand & 0x000F];
-  SHIFTTYPE type = shiftType(operand);
-  *shiftCarry = shift(&valueInRm, type, amount);
-  return valueInRm;
+	uint32_t valueInRm = state->regs[operand & 0x000F];
+	SHIFTTYPE type = shiftType(operand);
+	*shiftCarry = shift(&valueInRm, type, amount);
+	return valueInRm;
 }

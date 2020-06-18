@@ -13,20 +13,24 @@
  *
  * RETURN: uint32_t - The 32 bit integer equivalent of the multiplication instruction.
 */
-uint32_t convertMultiplyToBinary(instruction *state, const int currentLine) {
-  char **instructions = splitUp(state->lines[currentLine]);
-  uint32_t Rd = getInt(instructions[1]) << 16;
-  uint32_t Rm = getInt(instructions[2]);
-  uint32_t Rs = getInt(instructions[3]) << 8;
-  uint32_t fillerBits = 0x90;
-  if (!strcmp(instructions[0], "mla")) {
-	uint32_t accFlag = 1 << 21;
-	uint32_t Rn = getInt(instructions[4]);
-	Rn <<= 12;
-	free(instructions);
-	return TRUE_CONDITION + accFlag + Rd + Rn + Rm + Rs + fillerBits;
-  } else {
-	free(instructions);
-	return TRUE_CONDITION + Rd + Rm + Rs + fillerBits;
-  }
+uint32_t convertMultiplyToBinary(instruction *state, const int currentLine)
+{
+	char **instructions = splitUp(state->lines[currentLine]);
+	uint32_t Rd = getInt(instructions[1]) << 16;
+	uint32_t Rm = getInt(instructions[2]);
+	uint32_t Rs = getInt(instructions[3]) << 8;
+	uint32_t fillerBits = 0x90;
+	if (!strcmp(instructions[0], "mla"))
+	{
+		uint32_t accFlag = 1 << 21;
+		uint32_t Rn = getInt(instructions[4]);
+		Rn <<= 12;
+		free(instructions);
+		return TRUE_CONDITION + accFlag + Rd + Rn + Rm + Rs + fillerBits;
+	}
+	else
+	{
+		free(instructions);
+		return TRUE_CONDITION + Rd + Rm + Rs + fillerBits;
+	}
 }
