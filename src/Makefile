@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -Wall -g -D_DEFAULT_SOURCE -D_DEFAULT_SOURCE -std=c99 -Werror -pedantic
+CFLAGS  = -Wall -g -D_DEFAULT_SOURCE -D_POSIX_SOURCE -std=c99 -Werror -pedantic
 
 .SUFFIXES: .c .o
 
@@ -61,5 +61,3 @@ clean:
 	rm -f assemble
 	rm -f emulator_utils/*.o
 	rm -f assembler_utils/*.o
-	rm -f emulate.o
-	rm -f assemble.o
