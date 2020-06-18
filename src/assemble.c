@@ -1,343 +1,279 @@
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * The main file for the assembler.
+*/
+
 #include "assembler_utils/assemble.h"
 
 /*
- * fileLength
- * Params - takes in the filename string
- * Returns - the number of lines in the file (number of instructions in file)
- */
-int fileLength(char *filename)
-{
-  int lines = 0;
-  FILE *file;
-  file = fopen(filename, "r");
-  char c = fgetc(file);
-  while (c != EOF)
-  {
-    if (c == '\n')
-    {
-      lines += 1;
-    }
-    c = fgetc(file);
-  }
-  fclose(file);
-  return lines;
+ * SUMMARY: Initialises all values in the state struct.
+ *
+ * PARAMETER: instruction *instr - Stores important information about source file instructions.
+ * PARAMETER: symbolTable table - The symbol table containing the labels and their addresses.
+ * PARAMETER: int lineCount - The number of lines in the source file.
+ * PARAMETER: char **instructions- An array of strings which stores the lines in the source file.
+ *
+ * RETURN: void
+*/
+void initialiseState(instruction *instr,
+					 symbolTable table,
+					 int lineCount,
+					 char **instructions) {
+  instr->symbolTable = table;
+  instr->lineCount = lineCount;
+  instr->lines = instructions;
+  instr->sdt_helper.no_instructions = lineCount * 4;
+  instr->sdt_helper.finalNumbers = malloc(1 * sizeof(int));
+  instr->sdt_helper.sizeOfFinalNumbers = 1;
+  *(instr->sdt_helper.finalNumbers) = (-25);
 }
 
 /*
- * arrayOfArmInstructions
- * Params - the filename string, the number of lines in file
- * Returns - the array of arm instructiosn saved in the file
- */
-char **arrayOfArmInstructions(char *filename, int lines)
-{
-  // create a 2d array of instructions
-  FILE *file;
-  file = fopen(filename, "r");
-  int longestLine = fileLength(filename);
-  char **text = (char **)calloc(lines, sizeof(char *));
-  createStringArray(text, lines + 1, longestLine + 20);
-  char c = fgetc(file);
-  int i = 0;
-  int j = 0;
-  while (c != EOF)
-  {
-    if (c != '\n')
-    {
-      text[i][j] = c;
-      j++;
-    }
-    else
-    {
-      text[i][j] = ' ';
-      text[i][j + 1] = 'e';
-      text[i][j + 2] = 'n';
-      text[i][j + 3] = 'd';
-      text[i][j + 4] = '\0';
-      i++;
-      j = 0;
-    }
-    c = fgetc(file);
-  }
-  text[lines] = "FIN";
-  return text;
+ * SUMMARY: Adds a string " end" to the end of each line which assists later.
+ *
+ * PARAMETER: int lineCount - The number of lines in the source file.
+ * PARAMETER: char **instructions - An array of strings which stores the lines in the source file.
+ *
+ * RETURN: void
+*/
+void addEndToInstruction(char **instructions, int lineCount) {
+  instructions[lineCount][strlen(instructions[lineCount])] = ' ';
+  instructions[lineCount][strlen(instructions[lineCount])] = 'e';
+  instructions[lineCount][strlen(instructions[lineCount])] = 'n';
+  instructions[lineCount][strlen(instructions[lineCount])] = 'd';
 }
 
 /*
- * checkForColon
- * Params - a word
- * Returns - 1 if there is a colon at end or 0 if there is not
- */
-int checkForColon(char *word)
-{
-  int i = 0;
-  while (word[i] != '\0')
-  {
-    if (word[i] == ':')
-    {
-      return 1;
-    }
-    i++;
+ * SUMMARY: FirstPass.
+ *
+ * PARAMETER: symbolTable table - The symbol table which should contain the labels and their addresses.
+ * PARAMETER: int *numberOfLines - A pointer to an int which should represent number of lines in the source file.
+ * PARAMETER: char *filepath - Path oof the source file.
+ *
+ * RETURN: char ** - An array of strings which stores the lines in the source file.
+*/
+char **firstPass(char *filePath, symbolTable *table, int *numberOfLines) {
+  FILE *inputFile = fopen(filePath, "r");
+  CHECK_IF_NULL(inputFile)
+  int labelCount = 0;
+  int lineCount = -1;
+  char **labels = calloc(0, sizeof(char *));
+  int *memoryAddresses = calloc(0, sizeof(int));
+  char **instructions = malloc(sizeof(char *));
+  instructions[0] = malloc((MAX_LINE_LENGTH + EXTRA_CHARS) * sizeof(char));
+  while (fgets(instructions[++lineCount], MAX_LINE_LENGTH, inputFile)) {
+	if (instructions[lineCount][0] == '\n') {
+	  lineCount--;
+	  continue;
+	}
+	strtok(instructions[lineCount], "\n");
+	addEndToInstruction(instructions, lineCount);
+	instructions = realloc(instructions, (lineCount + 2) * sizeof(char *));
+	instructions[lineCount + 1] = malloc(MAX_LINE_LENGTH + EXTRA_CHARS * sizeof(char));
+	if (instructions[lineCount][strlen(instructions[lineCount]) - 5] == ':') {
+	  labels = realloc(labels, (labelCount + 1) * sizeof(char *));
+	  CHECK_IF_NULL(labels)
+	  labels[labelCount] = calloc(MAX_LINE_LENGTH, sizeof(char));
+	  CHECK_IF_NULL(labels[labelCount])
+	  strcpy(labels[labelCount], strtok(instructions[lineCount], ":"));
+	  memoryAddresses = realloc(memoryAddresses, (labelCount + 1) * sizeof(int));
+	  CHECK_IF_NULL(memoryAddresses)
+	  memoryAddresses[labelCount] = (lineCount * 4) - (4 * labelCount);
+	  labelCount++;
+	}
   }
-  return 0;
+  free(instructions[lineCount]);
+  instructions = realloc(instructions, (lineCount) * sizeof(char *));
+  table->numberOfItems = labelCount;
+  table->memoryAddresses = memoryAddresses;
+  table->labels = labels;
+  fclose(inputFile);
+  *numberOfLines = lineCount;
+  return instructions;
 }
 
 /*
- * getStringSize
- * Params - a string values
- * Returns - the number of strings values can be split up into according to the delimiter " ,:" and " ,.-"
- */
-int getStringSize(char *values)
-{
-  char cloned_values[511];
+ * SUMMARY: Splits up the string in terms of its operands.
+ *
+ * PARAMETER: char *instruction = The instruction to be split up.
+ *
+ * RETURN: char ** - An array of strings which stores the split up operands.
+*/
+char **splitUp(char *instruction) {
+  char clonedValues[MAX_LINE_LENGTH + EXTRA_CHARS];
+  strcpy(clonedValues, instruction);
+  char **array = (char **)calloc(0, sizeof(char *));
+  char *separated_values = strtok(clonedValues, " ,:[]");
   int i = 0;
-  while (values[i] != '\0')
-  {
-    cloned_values[i] = values[i];
-    i++;
+  while (separated_values) {
+	array = realloc(array, (i + 1) * sizeof(char *));
+	array[i++] = separated_values;
+	separated_values = strtok(NULL, ", .-");
   }
-  cloned_values[i] = '\0';
-  char *separated_values;
-  i = 0;
-  separated_values = strtok(cloned_values, " ,:");
-  while (separated_values != NULL)
-  {
-    separated_values = strtok(NULL, " ,.-");
-    i++;
-  }
-  return i;
-}
-
-/*
- * splitUp
- * Params - a string
- * Returns - an array of strings after splitting it up appropriately
- */
-char **splitUp(char *string)
-{
-  char buffer[511];
-  strcpy(buffer, string);
-  int size = getStringSize(string);
-  char *separated_values;
-  char **array = (char **)calloc(size, sizeof(char *));
-  separated_values = strtok(buffer, " ,:[]");
-  int i = 0;
-  while (separated_values != NULL)
-  {
-    array[i] = separated_values;
-    separated_values = strtok(NULL, " ,.-");
-    i++;
-  }
-
   return array;
 }
 
 /*
- * firstPass
- * Params - symbtable, and array of strings (instructions)
- * Returns - nothing
- */
-void firstPass(SymbTable *table, char **instructions)
-{
-  char **labels;
-  int totalLabels = 0;
-  int i = 0;
-  while (strcmp(instructions[i], "FIN"))
-  {
-    if (checkForColon(instructions[i]))
-    {
-      totalLabels++;
-    }
-    i++;
-  }
-  i = 0;
-  if (totalLabels == 0)
-  {
-    table->numberOfItems = 0;
-    table->memoryAddresses = (int *)calloc(1, sizeof(int));
-    table->labels = (char **)calloc(1, sizeof(char *));
-    table->labels[0] = (char *)calloc(6, sizeof(char));
-    char *empty = "empty";
-    for (int k = 0; k < strlen("empty"); k++)
-    {
-      table->labels[0][k] = empty[k];
-    }
-    table->memoryAddresses[0] = 0;
-  }
-  else
-  {
-    table->numberOfItems = totalLabels;
-    labels = (char **)calloc(totalLabels, sizeof(char *));
-    for (int k = 0; k < totalLabels; k++)
-    {
-      labels[k] = (char *)calloc(15, sizeof(char));
-    }
-    table->memoryAddresses = (int *)calloc(totalLabels, sizeof(int));
-    totalLabels = 0;
-    while (strcmp(instructions[i], "FIN"))
-    {
-      if (checkForColon(instructions[i]))
-      {
-        char **split = splitUp(instructions[i]);
-        for (int j = 0; j < strlen(split[0]); j++)
-        {
-          labels[totalLabels][j] = split[0][j];
-        }
-        table->memoryAddresses[totalLabels] = (i - totalLabels) * 4;
-        totalLabels++;
-      }
-      i++;
-    }
-    table->labels = labels;
+ * SUMMARY: Gets relevant data from the mnemonicMap.
+ *
+ * PARAMETER: mnemonicMap map - The mnemonic map.
+ * PARAMETER: instruction *instr - Stores important information about source file instructions.
+ *
+ * RETURN: void
+*/
+void getInstrData(mnemonicMap map, instruction *instr) {
+  switch (map.t) {
+	case DP:
+	  instr->u.opCode = (Dp)map.mnemonic;
+	  break;
+	case SDT:
+	  instr->u.sdt = (Dt)map.mnemonic;
+	  break;
+	case BRANCH:
+	  instr->u.condCode = (Branch)map.mnemonic;
+	  break;
+	default:
+	  break;
   }
 }
 
 /*
- * littleEndianConv
- * Params - big endian 32 bit instruction
- * Returns - little endian 32 bit instruction
- */
-u_int32_t littleEndianConv(u_int32_t instruction)
-{
-  u_int32_t firstByte = (instruction & 0xff000000) >> 24;
-  u_int32_t secondByte = (instruction & 0x00ff0000) >> 8;
-  u_int32_t thirdByte = (instruction & 0x0000ff00) << 8;
-  u_int32_t fourthByte = (instruction & 0x000000ff) << 24;
+ * SUMMARY: Converts to little endian format.
+ *
+ * PARAMETER: uint32_t instruction - The big endian 32 bit instruction.
+ *
+ * RETURN: uint32_t - Instruction in little endian format.
+*/
+uint32_t littleEndianConverter(uint32_t instruction) {
+  uint32_t firstByte = (instruction & 0xff000000) >> 24;
+  uint32_t secondByte = (instruction & 0x00ff0000) >> 8;
+  uint32_t thirdByte = (instruction & 0x0000ff00) << 8;
+  uint32_t fourthByte = (instruction & 0x000000ff) << 24;
   return firstByte | secondByte | thirdByte | fourthByte;
 }
 
-void writeToFile(FILE *file, u_int32_t instruction)
-{
-  u_int32_t firstByte = (instruction & 0xff000000) >> 24;
-  u_int32_t secondByte = (instruction & 0x00ff0000) >> 16;
-  u_int32_t thirdByte = (instruction & 0x0000ff00) >> 8;
-  u_int32_t fourthByte = (instruction & 0x000000ff);
-  fwrite(&firstByte, sizeof(u_int8_t), 1, file);
-  fwrite(&secondByte, sizeof(u_int8_t), 1, file);
-  fwrite(&thirdByte, sizeof(u_int8_t), 1, file);
-  fwrite(&fourthByte, sizeof(u_int8_t), 1, file);
-}
-
-void assembler(char **instructions, char *filename, int total_number_instructions)
-{
-  FILE *fileToWriteTo = fopen(filename, "w");
-
-  // SDT Variables
-  total_number_instructions *= 4;
-  int *no_instructions = malloc(1 * sizeof(int));
-  *no_instructions = total_number_instructions;
-  int *finalNumbers = malloc(1 * sizeof(int));
-  *finalNumbers = (-25);
-
-  int i = 0;
-  int currentInstr = 0;
-  SymbTable table;
-  firstPass(&table, instructions);
-  u_int32_t binInstruction;
-  while (strcmp(instructions[i], "FIN"))
-  {
-    if (strcmp(" end", instructions[i]) == 0)
-    {
-      i++;
-    }
-    else
-    {
-      char **commands = splitUp(instructions[i]);
-      MNEMONICS type = getMnemonic(commands);
-      switch (type)
-      {
-      case ADD:
-      case SUB:
-      case RSB:
-      case AND:
-      case EOR:
-      case ORR:
-      case TEQ:
-      case MOV:
-      case TST:
-      case CMP:;
-        binInstruction = convertDPToBinary(commands);
-        break;
-      case MUL:
-      case MLA:;
-        binInstruction = convertMultiplyToBinary(commands);
-        break;
-      case LDR:
-      case STR:;
-        binInstruction = convertSDTToBinary(commands, currentInstr * 4, no_instructions, finalNumbers, 4 * (table.numberOfItems));
-        break;
-      case BEQ:
-      case BNE:
-      case BGE:
-      case BLT:
-      case BGT:
-      case BLE:
-      case B:;
-        binInstruction = convertBranchToBinary(commands, table, i * 4);
-        break;
-      case LABEL:
-        i++;
-        continue;
-      case ANDEQ:
-        binInstruction = 0;
-        break;
-      case LSL:
-        binInstruction = convertLSLToBinary(commands);
-        break;
-      }
-
-      binInstruction = littleEndianConv(binInstruction);
-      writeToFile(fileToWriteTo, binInstruction);
-      i++;
-      currentInstr++;
-    }
-  }
-
-  i = 0;
-  while (finalNumbers[i] >= 0)
-  {
-    // write the binarry equivalent of the binary value
-    binInstruction = littleEndianConv(*(finalNumbers + i));
-    writeToFile(fileToWriteTo, binInstruction);
-    i++;
-  }
-
-  // take each number and add to end of while
-  // i last instruciton
-
-  fclose(fileToWriteTo);
+/*
+ * SUMMARY: Writes to the outputFile.
+ *
+ * PARAMETER: FILE *outputFile - The output file.
+ * PARAMETER: uint32_t instruction - The instruction to write.
+ *
+ * RETURN: void
+*/
+void writeToFile(FILE *outputFile, uint32_t instruction) {
+  uint32_t firstByte = (instruction & 0xff000000) >> 24;
+  uint32_t secondByte = (instruction & 0x00ff0000) >> 16;
+  uint32_t thirdByte = (instruction & 0x0000ff00) >> 8;
+  uint32_t fourthByte = (instruction & 0x000000ff);
+  fwrite(&firstByte, sizeof(uint8_t), 1, outputFile);
+  fwrite(&secondByte, sizeof(uint8_t), 1, outputFile);
+  fwrite(&thirdByte, sizeof(uint8_t), 1, outputFile);
+  fwrite(&fourthByte, sizeof(uint8_t), 1, outputFile);
 }
 
 /*
-Assembler
-takes in : arm source file name, and binary output name
- - creates the binary file equivalent of the arm file
- */
-int main(int argc, char **argv)
-{
+ * SUMMARY: Decides the type of the instruction using function pointers.
+ *
+ * PARAMETER: FILE *outputFile - The output file.
+ * PARAMETER: instruction *instr - Stores important information about source file instructions.
+ * PARAMETER: mnemonicMap m[] - An array of mnemonicMaps.
+ * PARAMETER: int currentLine - Current line in the array of lines.
+ *
+ * RETURN: void
+*/
+void process(int currentLine, mnemonicMap m[], instruction *instr, FILE *outputFile) {
+  char *line = malloc(511 * sizeof(char));
+  int j;
+  strcpy(line, instr->lines[currentLine]);
+  strtok(line, " ");
+  uint32_t(*func[5])(instruction * ,
+  const int) = {
+	convertDpToBinary, convertSdtToBinary, convertBranchToBinary, convertMultiplyToBinary, convertSpecialToBinary
+  };
+  uint32_t binaryInstr = 0;
+  for (j = 0; j < NUMBER_OF_COMMANDS; ++j) {
+	if (!strcmp(line, m[j].str)) {
+	  getInstrData(m[j], instr);
+	  binaryInstr = func[m[j].t](instr, currentLine);
+	  break;
+	}
+  }
+  if (j == 23) {
+	free(line);
+	return;
+  }
+  binaryInstr = littleEndianConverter(binaryInstr);
+  writeToFile(outputFile, binaryInstr);
+  free(line);
+}
 
+/*
+ * SUMMARY: Second Pass.
+ *
+ * PARAMETER: FILE *outputFile - The output file.
+ * PARAMETER: instruction *instr - Stores important information about source file instructions.
+ *
+ * RETURN: void
+*/
+void secondPass(instruction *state, char *filePath) {
+  FILE *binFile = fopen(filePath, "w");
+  mnemonicMap m[] =
+	  {{ADD, "add", DP}, {SUB, "sub", DP}, {RSB, "rsb", DP}, {AND, "and", DP}, {EOR, "eor", DP},
+	   {ORR, "orr", DP}, {MOV, "mov", DP}, {TST, "tst", DP}, {TEQ, "teq", DP}, {CMP, "cmp", DP},
+	   {MUL, "mul", MULTIPLY}, {MLA, "mla", MULTIPLY}, {LDR, "ldr", SDT}, {STR, "str", SDT},
+	   {BEQ, "beq", BRANCH}, {BNE, "bne", BRANCH}, {BGE, "bge", BRANCH}, {BLT, "blt", BRANCH},
+	   {BGT, "bgt", BRANCH}, {BLE, "ble", BRANCH}, {B, "b", BRANCH}, {LSL, "lsl", SPECIAL},
+	   {HALT, "andeq", SPECIAL}};
+  for (int i = 0; i < state->lineCount; i++) {
+	process(i, m, state, binFile);
+  }
+  int i = 0;
+  while (state->sdt_helper.finalNumbers[i] >= 0) {
+	// write the binary equivalent of the binary value
+	writeToFile(binFile, littleEndianConverter(*(state->sdt_helper.finalNumbers + i)));
+	i++;
+  }
+  fclose(binFile);
+}
+
+/*
+ * SUMMARY: The main assembler function where everything occurs.
+ *
+ * PARAMETER: char **argv - The input string array containing input and output file paths.
+ *
+ * RETURN: void
+*/
+void assembler(char **argv) {
+  symbolTable table;
+  table.numberOfItems = 0;
+  char **instructions;
+  int numberOfLines;
+  instructions = firstPass(argv[1], &table, &numberOfLines);
+  instruction state1;
+  initialiseState(&state1, table, numberOfLines, instructions);
+  secondPass(&state1, argv[2]);
+  for (int i = 0; i < numberOfLines; i++) {
+	free(instructions[i]);
+  }
+  free(instructions);
+  for (int i = 0; i < table.numberOfItems; i++) {
+	free(table.labels[i]);
+  }
+  free(table.labels);
+  free(table.memoryAddresses);
+  free(state1.sdt_helper.finalNumbers);
+}
+
+/*
+ * SUMMARY: The main function. It checks if given arguments are valid and then calls the assembler function.
+*/
+int main(int argc, char **argv) {
   // check the number of parameters is correct
-  if (argc != 3)
-  {
-    printf("ERROR with arguments: \n");
-    printf("Argument 1 - Arm Source File, \n Argument 2 - Binary File Name \n");
-    return EXIT_FAILURE;
+  if (argc != 3) {
+	printf("ERROR with arguments:\n");
+	printf("Argument 1 - Arm Source File,\nArgument 2 - Binary File Name\n");
+	return EXIT_FAILURE;
   }
-
-  char *arm_filename = argv[1];
-  char **instructionArray = arrayOfArmInstructions(arm_filename, fileLength(arm_filename));
-  // Preprocessing for the passes
-  // separete out each lines into array of chars for the passes
-
-  int total_instructions = 0;
-
-  for (int i = 0; i < fileLength(arm_filename); i++)
-  {
-    if (operandTotal(splitUp(instructionArray[i])) != 0)
-    {
-      total_instructions++;
-    }
-  }
-
-  assembler(instructionArray, argv[2], total_instructions);
+  assembler(argv);
   return EXIT_SUCCESS;
 }

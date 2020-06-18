@@ -7,7 +7,7 @@ CFLAGS  = -Wall -g -D_DEFAULT_SOURCE -D_DEFAULT_SOURCE -std=c99 -Werror -pedanti
 
 all: assemble emulate
 
-assemble: assemble.o assembler_utils/mnemonicHelper.o assembler_utils/processSDT.o assembler_utils/processMul.o assembler_utils/processLSL.o assembler_utils/processHelpers.o assembler_utils/processDP.o assembler_utils/processBranch.o  
+assemble: assemble.o assembler_utils/processSDT.o assembler_utils/processMul.o assembler_utils/processSpecial.o assembler_utils/processHelpers.o assembler_utils/processDP.o assembler_utils/processBranch.o
 		$(CC) $^ -o $@
 
 emulate: emulate.o emulator_utils/pipeline.o emulator_utils/output.o emulator_utils/executeHelper.o emulator_utils/executeInstr.o emulator_utils/shiftInstructions.o emulator_utils/decodeInstr.o
@@ -37,9 +37,6 @@ decodeInstr.o : emulator_utils/decodeInstr.c emulator_utils/emulateConstants.h e
 executeHelper.o : emulator_utils/executeInstr.c emulator_utils/emulateConstants.h emulator_utils/executeConstants.h
 		$(CC) $(CFLAGS) $< -c		
 
-mnemonicHelper.o : assembler_utils/mnemonicHelper.c assembler_utils/assemble.h
-		$(CC) $(CFLAGS) $< -c
-
 processBranch.o : assembler_utils/processBranch.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
 
@@ -49,7 +46,7 @@ processDP.o : assembler_utils/processDP.c assembler_utils/assemble.h
 processHelpers.o : assembler_utils/processHelpers.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
 
-processLSL.o : assembler_utils/processLSL.c assembler_utils/assemble.h
+processSpecial.o : assembler_utils/processSpecial.c assembler_utils/assemble.h
 		$(CC) $(CFLAGS) $< -c
 
 processMul.o : assembler_utils/processMul.c assembler_utils/assemble.h
@@ -65,3 +62,4 @@ clean:
 	rm -f emulator_utils/*.o
 	rm -f assembler_utils/*.o
 	rm -f emulate.o
+	rm -f assemble.o

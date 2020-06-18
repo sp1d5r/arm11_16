@@ -1,64 +1,105 @@
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * The file containing constants and function definitions for the assembler.
+*/
+
 #ifndef assemble
 #define assemble
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
+#define TRUE_CONDITION 0xe0000000
+#define NUMBER_OF_COMMANDS 23
 #define MAX_LINE_LENGTH 511
-#define TRUECOND 0xe0000000
+#define EXTRA_CHARS 5
 
-typedef struct SymbTable
-{
+typedef struct symbolTable {
   char **labels;
-  int *memoryAddresses;
   int numberOfItems;
-} SymbTable;
+  int *memoryAddresses;
+} symbolTable;
 
-typedef enum MNEMONICS
-{
-  ADD,
-  SUB,
-  RSB,
-  AND,
-  EOR,
-  ORR,
-  MOV,
-  TST,
-  TEQ,
-  CMP,
-  MUL,
-  MLA,
-  LDR,
-  STR,
-  BEQ,
-  BNE,
-  BGE,
-  BLT,
-  BGT,
-  BLE,
-  B,
-  ANDEQ,
-  LSL,
-  LABEL
-} MNEMONICS;
+typedef struct sdtHelper {
+  int no_instructions;
+  int *finalNumbers;
+  int sizeOfFinalNumbers;
+} sdtHelper;
 
-/*
--getMnemonic
--convertBranchToBinary
--convertDPToBinary
--convertLSLToBinary
--convertMultiplyToBinary
--convertSDTToBinary
-*/
-MNEMONICS getMnemonic(char **instruction);
-u_int32_t convertBranchToBinary(char **instructions, SymbTable table, int address);
-u_int32_t convertDPToBinary(char **instruction);
-u_int32_t convertLSLToBinary(char **instruction);
-u_int32_t convertMultiplyToBinary(char **instructions);
-u_int32_t convertSDTToBinary(char **instructions, int current_instruction, int *total_instructions, int *finalNumbers, int noOfLabels);
+typedef enum Types {
+  DP = 0, SDT = 1, BRANCH = 2, MULTIPLY = 3, SPECIAL = 4
+} Types;
+
+typedef enum Dp {
+  ADD = 4, SUB = 2, RSB = 3, AND = 0, EOR = 1, ORR = 12, MOV = 13, TST = 8, TEQ = 9, CMP = 10
+} Dp;
+
+typedef enum Multiply {
+  MUL, MLA,
+} Multiply;
+
+typedef enum Dt {
+  LDR, STR
+} Dt;
+
+typedef enum Branch {
+  BEQ = 0, BNE = 1, BGE = 10, BLT = 11, BGT = 12, BLE = 13, B = 14
+} Branch;
+
+typedef enum Special {
+  LSL, HALT
+} Special;
+
+typedef struct mnemonicMap {
+  int mnemonic;
+  char *str;
+  Types t;
+} mnemonicMap;
+
+typedef struct instruction {
+  symbolTable symbolTable;
+  union {
+	Dp opCode;
+	Dt sdt;
+	Branch condCode;
+  } u;
+  char **lines;
+  int lineCount;
+  sdtHelper sdt_helper;
+} instruction;
+
+#define CHECK_IF_NULL(x) if (!x)                \
+  {                                             \
+    printf("Allocation Error / Invalid File."); \
+    exit(EXIT_FAILURE);                         \
+  }
+
+void assembler(char **);
+void secondPass(instruction *state, char *filePath);
+void process(int currentLine, mnemonicMap m[], instruction *instr, FILE *outputFile);
+void writeToFile(FILE *outputFile, u_int32_t instruction);
+u_int32_t littleEndianConverter(u_int32_t instruction);
+void getInstrData(mnemonicMap map, instruction *instr);
+uint32_t convertBranchToBinary(instruction *instr, const int currentLine);
+uint32_t convertSpecialToBinary(instruction *state, const int currentLine);
+uint32_t convertMultiplyToBinary(instruction *state, const int currentLine);
+uint32_t convertSdtToBinary(instruction *state, const int currentLine);
+int calculatePFlag(char *instruction);
+void updateInts(int *values, int value, int size);
+//int getSize(const int *values);
+uint32_t convertDpToBinary(instruction *state, const int currentLine);
+char **splitUp(char *instruction);
+char **firstPass(char *filePath, symbolTable *table, int *numberOfLines);
+void addEndToInstruction(char **instructions, int lineCount);
+void initialiseState(instruction *instr, symbolTable table, int lineCount, char **instructions);
 int operandTotal(char **array);
-void createStringArray(char **array, int length, int maxSize);
+int getInt(char *values);
+int returnAddressFromSymbolTable(char *stringTarget, symbolTable lookUp);
+int getShiftNum(char *shift);
+uint32_t getShiftAmount(char **shiftOperand);
+uint32_t processOffset(int offset);
+uint32_t processOperand2(char **operand2);
 
-#endif
+#endif // assemble
