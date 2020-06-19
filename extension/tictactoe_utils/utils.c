@@ -125,8 +125,8 @@ void freePaths(pathArray *p)
 
 void askCellandPos(int *cell, int *position)
 {
-  char *cellInput = "";
-  char *posInput = "";
+  char cellInput[5];
+  char posInput[5];
   scanf("%s", cellInput);
   scanf("%s", posInput);
   if (cellInput[0] < '0' || cellInput[0] > '9' || posInput[0] < '0' || posInput[0] > '9')
@@ -143,7 +143,7 @@ void askCellandPos(int *cell, int *position)
 
 void askPosition(int *position)
 {
-  char *posInput = "";
+  char posInput[5];
   scanf("%s", posInput);
   if (posInput[0] < '0' || posInput[0] > '9')
   {
