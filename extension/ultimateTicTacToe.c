@@ -68,7 +68,7 @@ int main()
     else
     {
       printf("The CPU is thinking...\n");
-      sleep(2);
+      sleep(1);
       if (!cellWon(b, *holdsNext) && !isCellFull(*b->cells[returnRow(*holdsNext)][returnColumn(*holdsNext)]))
       {
         printf("The CPU has to play in cell %i \n", *holdsNext);

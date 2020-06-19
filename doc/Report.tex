@@ -4,6 +4,7 @@
 \usepackage[font=small,labelfont=bf]{caption}
 \PassOptionsToPackage{hyphens}{url}\usepackage{hyperref}
 \usepackage{wrapfig}
+\usepackage{subfig}
 
 
 \usetikzlibrary{shapes.geometric, arrows}
@@ -76,6 +77,16 @@ As previously mentioned, there are two types of situations, a free pick and a re
 The game continues until either there are no more places to play in or the game is won.
 \\\\We had two evaluation functions, one was a function that evaluated the whole board and another evaluated just a cell. The function that evaluated the board just added up all the cell evaluations. The one that evaluated a single cell would start off by seeing if the cell had been won already. If so it would immediately return the value (-10 for a player win and 10 for an AI win). If not it would then try to calculate how many two-in-a-rows that could be finished. It would do that for both the player and the AI. Then it would see how many AI plays and player plays were in the power positions. These were the middle and the corners (the middle was more valuable than the corners) as they are the most important places to secure in order to win. We would add for any times the AI had a play in these positions and subtract any time the player had a play in these positions. In the end, we would add the AI pairs and subtract the player pairs and add the power positions total to get the score of the cell. This incentivised the AI to pursue the middle and then securing 3-in-a-rows to win the game.
 We also had a function that would print the table to the terminal. The function begins by creating an array of strings, of which each string has 21 characters and the string array has a length of 9. It then writes each row to a string and then prints them in order with a gaps between them.
+
+\begin{figure}%
+	\centering
+    \subfloat[A game that the user won]{{\includegraphics[width=5cm]{gameWin.png} }}%
+    \qquad
+    \subfloat[A game that the user lost]{{\includegraphics[width=7cm]{gameLose.png} }}%
+    \caption{An image of two situations of the final state of the game}%
+\end{figure}
+
+
 \subsection{Testing}
 After feeling confident that our functions were performing as expected, we strung them together and begun testing our program. We played the game a few times before realising there were a few issues.
 \\We realised the program took a long time to make a move, we concluded that our computers were not fast enough to compute every possible outcome in a reasonable amount of time, to overcome this we adjusted the depth of our program. Adjusting the depth reduced the amount of time taken in decision making but it meant that we could beat the program occasionally. 
@@ -100,6 +111,8 @@ In terms of fitting in the group, I don’t think it was a worry as I knew the m
 In terms of my strengths with the project, I believe one of my major strength was communication as especially during the first week, we were a bit lost and all a bit confused I believe communicating with each individual within the team gave the project a good boost, as after I had let everyone know what to do and split the tasks up more explicitly, we were making good progress. Another one of my strengths, I think also made the project go more smoothly was debugging and helping others debug was key to the success of our project.
 \\Regarding my weaknesses, I believe one of my weaknesses was definitely my use of git, as I had never worked on a group project using git before therefore branching and merging were definitely new things, however, the decision for us all to learn how to use it before we started working was very helpful. Along with some help from Ayoob, I am now comfortable using git in a group project.
 \\Another thing I think I would need to improve is organising the team meetings and understanding team members schedule better as there were times where team members were busy and were unable to work which definitely made organising the meetings better, however having the system on discord to log updates was definitely helpful for all of us.
-\\If I was placed in another team, I believe my approach to organising the team and communicating would now be better. I believe I can now come up with  more efficient ways to handle the team.Hhowever, as previously mentioned, I would try to get a better understanding on how everyone works earlier on in the project.
+\\If I was placed in another team, I believe my approach to organising the team and communicating would now be better. I believe I can now come up with  more efficient ways to handle the team.However, as previously mentioned, I would try to get a better understanding on how everyone works earlier on in the project.
+\section{Conclusion}
+Overall we believe the project went very successful, although there were moments where we were unsure of what to do, we found the project interesting and helped us get a better understanding and gain more experience with C. During this project we were able to further develop our algorithm skills and were able to research on other algorithms. We then also began discussing on how we could implement machine learning to further optimise the decisions made by the AI, which we found very interesting.
 
 \end{document}
