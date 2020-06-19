@@ -154,12 +154,3 @@ void askPosition(int *position)
     *position = atoi(posInput);
   }
 }
-
-void emptyStdin(void)
-{
-  int c = getchar();
-  while (c != '\n' && c != EOF)
-  {
-    c = getchar();
-  }
-}

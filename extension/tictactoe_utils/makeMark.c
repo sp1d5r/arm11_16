@@ -10,21 +10,18 @@ void freePick(board *b, int *next, int cell, int position, bool isPlayer)
 {
   if (position > 8 || cell > 8 || position < 0 || cell < 0)
   {
-    // emptyStdin();
     printf("Out of bounds. Please select a cell number and position inside the cell between 0 and 8:\t");
     askCellandPos(&cell, &position);
     freePick(b, next, cell, position, isPlayer);
   }
   else if (b->cells[returnRow(cell)][returnColumn(cell)]->boxes[returnRow(position)][returnColumn(position)] != 0)
   {
-    // emptyStdin();
     printf("Already written in this position, pick a cell and position again\n");
     askCellandPos(&cell, &position);
     freePick(b, next, cell, position, isPlayer);
   }
   else if (cellWon(b, cell))
   {
-    // emptyStdin();
     printf("This cell has already been won, pick a different cell and position (separated by a space)");
     askCellandPos(&cell, &position);
     freePick(b, next, cell, position, isPlayer);
@@ -44,21 +41,18 @@ void restrictedPick(board *b, int *next, int position, bool isPlayer)
 {
   if (position > 8)
   {
-    // emptyStdin();
     printf("Out of bounds. Please select a position inside between 0 and 8");
     askPosition(&position);
     restrictedPick(b, next, position, isPlayer);
   }
   else if (b->cells[returnRow(*next)][returnColumn(*next)]->boxes[returnRow(position)][returnColumn(position)] != 0)
   {
-    // emptyStdin();
     printf("Already written in this position, pick a position again\n");
     askPosition(&position);
     restrictedPick(b, next, position, isPlayer);
   }
   else if (cellWon(b, *next))
   {
-    // emptyStdin();
     int cell;
     printf("This cell has already been won. You get a free pick! Pick a different cell and position (separated by a space)\n");
     askCellandPos(&cell, &position);

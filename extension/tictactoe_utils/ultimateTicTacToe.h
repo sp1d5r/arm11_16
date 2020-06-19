@@ -103,6 +103,5 @@ void askCellandPos(int *, int *);
 void askPosition(int *);
 void bestMoveFree(board *b, int *cellResult, int *positionResult);
 void bestMoveRestricted(board *b, int *positionResult, int cell);
-void emptyStdin(void);
 
 #endif // boardConstants
