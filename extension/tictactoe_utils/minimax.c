@@ -1,4 +1,7 @@
-// The minimax algorithms
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * The minimax algorithms.
+*/
 
 #include "ultimateTicTacToe.h"
 

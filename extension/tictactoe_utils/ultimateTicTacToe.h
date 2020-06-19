@@ -1,5 +1,10 @@
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * The constants and structs required by the program.
+*/
+
 #ifndef boardConstants
-#define boardConstants
+#define boardConstant
 
 #include <stdlib.h>
 #include <stdio.h>

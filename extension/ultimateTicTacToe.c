@@ -1,3 +1,8 @@
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * The main function of the game which deals with user interactions.
+*/
+
 #include "tictactoe_utils/ultimateTicTacToe.h"
 
 int main()

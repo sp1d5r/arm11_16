@@ -1,6 +1,9 @@
-#include "ultimateTicTacToe.h"
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * Functions that make a mark on the board.
+*/
 
-//FUNCTIONS THAT MAKE A MARK ON THE BOARD
+#include "ultimateTicTacToe.h"
 
 //this is how a free pick is done - the position is stored in next so the next cell can be picked
 void freePick(board *b, int *next, int cell, int position, bool isPlayer)

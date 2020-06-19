@@ -15,16 +15,16 @@
 */
 uint32_t convertSpecialToBinary(instruction *state, const int currentLine)
 {
-	char **instructions = splitUp(state->lines[currentLine]);
-	if (!strcmp(instructions[0], "andeq"))
-	{
-		return 0;
-	}
-	char rn[5], expression[511];
-	strcpy(rn, instructions[1]);
-	strcpy(expression, instructions[2]);
-	sprintf(state->lines[currentLine], "mov %s,%s,lsl %s end", rn, rn, expression);
-	state->u.opCode = 13;
-	free(instructions);
-	return convertDpToBinary(state, currentLine);
+  char **instructions = splitUp(state->lines[currentLine]);
+  if (!strcmp(instructions[0], "andeq"))
+  {
+    return 0;
+  }
+  char rn[5], expression[511];
+  strcpy(rn, instructions[1]);
+  strcpy(expression, instructions[2]);
+  sprintf(state->lines[currentLine], "mov %s,%s,lsl %s end", rn, rn, expression);
+  state->u.opCode = 13;
+  free(instructions);
+  return convertDpToBinary(state, currentLine);
 }

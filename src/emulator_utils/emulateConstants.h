@@ -29,31 +29,38 @@
 // enum for shift types:
 typedef enum SHIFTTYPE
 {
-	LOGICALLEFT, LOGICALRIGHT, ARITHMETICRIGHT, ROTATERIGHT
+  LOGICALLEFT,
+  LOGICALRIGHT,
+  ARITHMETICRIGHT,
+  ROTATERIGHT
 } SHIFTTYPE;
 
 // enum for the instructions available:
 typedef enum INSTRUCTION
 {
-	MULTIPLY, BRANCH, PROCESS, TRANSFER, NONE
+  MULTIPLY,
+  BRANCH,
+  PROCESS,
+  TRANSFER,
+  NONE
 } INSTRUCTION;
 
 // Struct storing the current state of the machine:
 typedef struct ARMSTATE
 {
-	uint8_t *memory;
-	uint32_t regs[NUMBER_OF_REGISTERS];
-	bool fetchDecodeExecute[2]; // Assists the pipeline.
+  uint8_t *memory;
+  uint32_t regs[NUMBER_OF_REGISTERS];
+  bool fetchDecodeExecute[2]; // Assists the pipeline.
 } ARMSTATE;
 
 // Struct to store the value of the 4 bit instruction in big endian, the instruction type, the
 // registers which are required and the values of any other bits such as the Immediate operand:
 typedef struct DECODE
 {
-	uint32_t bigEndianInstr;
-	INSTRUCTION instruction;
-	uint8_t destReg: 4, rn: 4;
-	bool op1, op2;
+  uint32_t bigEndianInstr;
+  INSTRUCTION instruction;
+  uint8_t destReg : 4, rn : 4;
+  bool op1, op2;
 } DECODE;
 
 // Function Declarations:

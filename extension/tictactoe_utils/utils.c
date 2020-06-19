@@ -1,4 +1,7 @@
-// STRUCT BASED FUNCTIONS -- INITIALISE AND FREE
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * Inititalising of structures and other utils required by the game.
+*/
 
 #include "ultimateTicTacToe.h"
 

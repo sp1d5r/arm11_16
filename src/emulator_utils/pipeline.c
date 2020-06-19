@@ -18,11 +18,11 @@
 
 void fetch(ARMSTATE *state, uint32_t *fetched)
 {
-	fetched[0] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION]];
-	fetched[1] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION] + 1];
-	fetched[2] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION] + 2];
-	fetched[3] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION] + 3];
-	state->fetchDecodeExecute[FETCHED] = true;
+  fetched[0] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION]];
+  fetched[1] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION] + 1];
+  fetched[2] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION] + 2];
+  fetched[3] = state->memory[state->regs[PROGRAM_COUNTER_LOCATION] + 3];
+  state->fetchDecodeExecute[FETCHED] = true;
 }
 
 /*
@@ -38,25 +38,25 @@ void fetch(ARMSTATE *state, uint32_t *fetched)
 
 void pipeline(ARMSTATE *state)
 {
-	uint32_t fetchedInstr[NUMBER_OF_BYTES_IN_INSTR];
-	DECODE previouslyDecodedInstruction =
-		{ INIT_ZERO_VAL, NONE, INIT_ZERO_VAL, INIT_ZERO_VAL, false, false };
-	bool firstDecode = true;
-	while (true)
-	{
-		if (state->fetchDecodeExecute[DECODED])
-			execute(&previouslyDecodedInstruction, state);
-		if (!previouslyDecodedInstruction.bigEndianInstr && !firstDecode)
-			break;
-		if (state->fetchDecodeExecute[FETCHED])
-		{
-			decode(fetchedInstr, &previouslyDecodedInstruction);
-			state->fetchDecodeExecute[DECODED] = true;
-			if (firstDecode)
-				firstDecode = false;
-		}
-		fetch(state, fetchedInstr);
-		state->regs[PROGRAM_COUNTER_LOCATION] += NUMBER_OF_BYTES_IN_INSTR;
-	}
-	outputState(state);
+  uint32_t fetchedInstr[NUMBER_OF_BYTES_IN_INSTR];
+  DECODE previouslyDecodedInstruction =
+      {INIT_ZERO_VAL, NONE, INIT_ZERO_VAL, INIT_ZERO_VAL, false, false};
+  bool firstDecode = true;
+  while (true)
+  {
+    if (state->fetchDecodeExecute[DECODED])
+      execute(&previouslyDecodedInstruction, state);
+    if (!previouslyDecodedInstruction.bigEndianInstr && !firstDecode)
+      break;
+    if (state->fetchDecodeExecute[FETCHED])
+    {
+      decode(fetchedInstr, &previouslyDecodedInstruction);
+      state->fetchDecodeExecute[DECODED] = true;
+      if (firstDecode)
+        firstDecode = false;
+    }
+    fetch(state, fetchedInstr);
+    state->regs[PROGRAM_COUNTER_LOCATION] += NUMBER_OF_BYTES_IN_INSTR;
+  }
+  outputState(state);
 }

@@ -1,4 +1,7 @@
-// FUNCTIONS THAT REPRESENT THE BOARD IN TERMINAL
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * Functions that represent the board in terminal.
+*/
 
 #include "ultimateTicTacToe.h"
 

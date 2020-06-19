@@ -1,4 +1,7 @@
-//FUNCTIONS THAT GET THE STATE OF THE GAME
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * Functions that get the state of the game.
+*/
 
 #include "ultimateTicTacToe.h"
 

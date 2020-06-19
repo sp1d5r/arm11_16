@@ -1,4 +1,7 @@
-//FUNCTIONS USED IN THE AI OF THE GAME
+/*
+ * GROUP 16 - Members: Aayush, Ayoob, Devam, Elijah
+ * Functions used in the AI of the game.
+*/
 
 #include "ultimateTicTacToe.h"
 
