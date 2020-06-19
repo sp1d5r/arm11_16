@@ -11,8 +11,8 @@
 #define ITEMS_IN_ROW 21
 #define A_BIG_NUMBER 32000
 #define A_SMALL_NUMBER -32000
-#define NULL_CHECK(ptr, msg) \
-  if (!(ptr))                \
+#define CHECK_IF_NULL(ptr, msg) \
+  if (!(ptr))                   \
   perror(msg), exit(EXIT_FAILURE)
 #define MAX(a, b) (a < b) ? b : a
 #define MIN(a, b) (a < b) ? a : b
@@ -20,31 +20,34 @@
 
 typedef enum
 {
-	TBD, DRAWN, PLAYERWIN, AIWIN
+  TBD,
+  DRAWN,
+  PLAYERWIN,
+  AIWIN
 } CELLSTATE;
 
 typedef struct
 {
-	CELLSTATE state;
-	int **boxes;
+  CELLSTATE state;
+  int **boxes;
 } cell;
 
 typedef struct board
 {
-	cell ***cells;
+  cell ***cells;
 } board;
 
 typedef struct
 {
-	int score;
-	int position;
-	int cell;
+  int score;
+  int position;
+  int cell;
 } potentialPath;
 
 typedef struct
 {
-	potentialPath **array;
-	int total;
+  potentialPath **array;
+  int total;
 } pathArray;
 
 typedef CELLSTATE gameState;
