@@ -29,7 +29,7 @@ int main()
   {
     if (isPlayer)
     {
-      printf("You make the first move. You will be X. Firstly pick the cell you would like to play in, numbered from 0 to 8 where 0 is the top left and 8 is the bottom right and then pick a position inside the cell (separated by a space)\n");
+      printf("You make the first move. You will be X. Firstly pick the cell you would like to play in, numbered from 0 to 8 where 0 is the top left and 8 is the bottom right and then pick a position inside the cell (separated by a space or RETURN:)\n");
       cell = 9;
       position = 9;
       askCellandPos(&cell, &position);
@@ -37,7 +37,7 @@ int main()
     }
     else
     {
-      printf("The CPU will go first. It is O.\n.");
+      printf("The CPU will go first. It is O.\n");
       bestMoveFree(b, AIFreePickCell, AIFreePickPosition);
       printf("The CPU has chosen to play in cell %i and position %i \n", *AIFreePickCell, *AIFreePickPosition);
       freePick(b, holdsNext, *AIFreePickCell, *AIFreePickPosition, isPlayer);
@@ -60,7 +60,7 @@ int main()
       }
       else
       {
-        printf("You have a free choice of a cell to play in. Pick a cell and a position (separated by a space)\n");
+        printf("You have a free choice of a cell to play in. Pick a cell and a position (separated by a space or RETURN):\n");
         askCellandPos(&cell, &position);
         freePick(b, holdsNext, cell, position, isPlayer);
       }
