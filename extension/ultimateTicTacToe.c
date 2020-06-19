@@ -29,7 +29,7 @@ int main()
   {
     if (isPlayer)
     {
-      printf("You make the first move. You will be X. Firstly pick the cell you would like to play in, numbered from 0 to 8 where 0 is the top left and 8 is the bottom right and then pick a position inside the cell (separated by a space or RETURN:)\n");
+      printf("You make the first move. You will be X. Firstly pick the cell you would like to play in, numbered from 0 to 8 where 0 is the top left and 8 is the bottom right and then pick a position inside the cell (separated by a space or RETURN):\n");
       cell = 9;
       position = 9;
       askCellandPos(&cell, &position);
