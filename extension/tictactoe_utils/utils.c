@@ -122,3 +122,44 @@ void freePaths(pathArray *p)
   }
   free(p);
 }
+
+void askCellandPos(int *cell, int *position)
+{
+  char *cellInput = "";
+  char *posInput = "";
+  scanf("%s", cellInput);
+  scanf("%s", posInput);
+  if (cellInput[0] < '0' || cellInput[0] > '9' || posInput[0] < '0' || posInput[0] > '9')
+  {
+    *cell = 9;
+    *position = 9;
+  }
+  else
+  {
+    *cell = atoi(cellInput);
+    *position = atoi(posInput);
+  }
+}
+
+void askPosition(int *position)
+{
+  char *posInput = "";
+  scanf("%s", posInput);
+  if (posInput[0] < '0' || posInput[0] > '9')
+  {
+    *position = 9;
+  }
+  else
+  {
+    *position = atoi(posInput);
+  }
+}
+
+void emptyStdin(void)
+{
+  int c = getchar();
+  while (c != '\n' && c != EOF)
+  {
+    c = getchar();
+  }
+}

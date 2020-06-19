@@ -99,7 +99,10 @@ void freePick(board *b, int *next, int cell, int position, bool isPlayer);
 void restrictedPick(board *b, int *next, int position, bool isPlayer);
 int minimaxFree(board *b, bool isMaximising, int alpha, int beta, int depth);
 int minimaxRestricted(board *b, bool isMaximising, int cell, int alpha, int beta, int depth);
+void askCellandPos(int *, int *);
+void askPosition(int *);
 void bestMoveFree(board *b, int *cellResult, int *positionResult);
 void bestMoveRestricted(board *b, int *positionResult, int cell);
+void emptyStdin(void);
 
 #endif // boardConstants

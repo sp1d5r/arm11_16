@@ -30,8 +30,9 @@ int main()
     if (isPlayer)
     {
       printf("You make the first move. You will be X. Firstly pick the cell you would like to play in, numbered from 0 to 8 where 0 is the top left and 8 is the bottom right and then pick a position inside the cell (separated by a space)\n");
-      scanf("%i", &cell);
-      scanf("%i", &position);
+      cell = 9;
+      position = 9;
+      askCellandPos(&cell, &position);
       freePick(b, holdsNext, cell, position, isPlayer);
     }
     else
@@ -54,14 +55,13 @@ int main()
       if (!cellWon(b, *holdsNext) && !isCellFull(*b->cells[returnRow(*holdsNext)][returnColumn(*holdsNext)]))
       {
         printf("You have to play in cell %i. Please pick a position\n", *holdsNext);
-        scanf("%i", &position);
+        askPosition(&position);
         restrictedPick(b, holdsNext, position, isPlayer);
       }
       else
       {
         printf("You have a free choice of a cell to play in. Pick a cell and a position (separated by a space)\n");
-        scanf("%i", &cell);
-        scanf("%i", &position);
+        askCellandPos(&cell, &position);
         freePick(b, holdsNext, cell, position, isPlayer);
       }
     }
